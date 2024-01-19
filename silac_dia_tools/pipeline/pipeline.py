@@ -102,7 +102,6 @@ class Pipeline:
         
     def preprocess_href(self):
         self.report = self.preprocessor.import_report()
-        # self.report = pd.read_csv(f'G:/My Drive/Data/data/testing pipeline dev/eif4f/subset_report.csv', sep='\t')
         print('finished reading in file')
         self.formatted_precursors = self.formatter.format_silac_channels(self.report)
         self.filtered_report, self.contaminants, self.filtered_out = self.preprocessor.filter_formatted(self.formatted_precursors)

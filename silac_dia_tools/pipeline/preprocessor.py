@@ -56,8 +56,6 @@ class Preprocessor:
   
             df = pd.concat(chunks, ignore_index=True)
             print('Finished import')
-        print("save subset")
-        df.to_csv("{self.path}report_subset.tsv", sep=',')
         return df
     
     #remove samples not in the metadata from the report.tsv
