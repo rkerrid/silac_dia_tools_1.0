@@ -13,13 +13,19 @@ from pandastable import Table
 import json
 import dask.dataframe as dd
 
+from .utils import manage_directories
+from .report import filtering_report
+
+from silac_dia_tools.pipeline_refactored.preprocessor import Preprocessor 
+from silac_dia_tools.pipeline_refactored.silac_formatter import SilacFormatter 
+from silac_dia_tools.pipeline_refactored.calculate_intensities import IntensityCalculator
+from silac_dia_tools.pipeline_refactored.precursor_rollup import PrecursorRollup
+
 # Import custom modules
-from silac_dia_tools.pipeline.refactored import (
-    Preprocessor, SilacFormatter, PrecursorRollup,
-    IntensityCalculator, manage_directories,
-    filtering_report, precursor_report,
-    protein_group_report, protein_intensities_report
-)
+# from silac_dia_tools.pipeline_refactored import (
+#     preprocessor, silac_formatter, precursor_rollup,
+#     calculate_intensities
+# )
 
 
 class Pipeline:
