@@ -10,31 +10,52 @@ import operator
 
 
 class Preprocessor:
-    def __init__(self, path, params, meta_data=None):
+    def __init__(self, path, params, filter_cols, meta_data=None):
         self.path = path
         self.meta_data = meta_data
         self.contains_metadata = meta_data is not None
         self.params = params
         self.chunk_size = 10000
         self.update = True
+        self.filter_cols = filter_cols
 
     def import_report(self):
-        print('Beginning import, no filter')
+        print('Beginning import .tsv')
         chunks = []
         file_path = f"{self.path}report.tsv"
 
         for count, chunk in enumerate(pd.read_table(file_path, sep="\t", chunksize=self.chunk_size), start=1):
             chunk['Genes'] = chunk['Genes'].fillna('')
             chunk['Protein.Group'] = chunk['Protein.Group'].str.cat(chunk['Genes'], sep='-')
+            
+            chunk = self.add_label_col(chunk)
+            chunk = self.add_precursor_col(chunk)
+            chunk = self.remove_cols(chunk)
+            # print(chunk.columns.values.tolist())
+        
             chunks.append(chunk)
             
             if self.update:
                 print(f'Chunk {count} processed')
-        
+            if count == 10:
+                break
         df = pd.concat(chunks, ignore_index=True)
         print('Finished import')
         return df
-
+    
+    def add_label_col(self, chunk):
+        chunk['Label'] = chunk['Precursor.Id'].str.extract(r'\(SILAC-(K|R)-([HML])\)')[1]
+        return chunk
+    
+    def add_precursor_col(self,chunk):
+        chunk['Precursor'] = chunk['Stripped.Sequence'].astype(str) + chunk['Precursor.Charge'].astype(str)
+        return chunk
+    
+    def remove_cols(self, chunk):
+        cols = ['Run', 'Protein.Group', 'Precursor', 'Label',  'Precursor.Quantity','Ms1.Translated','Precursor.Translated'] + self.filter_cols
+        chunk = chunk[cols]
+        return chunk
+    
     def filter_formatted(self, formatted_precursors):
         print('Begin filtering formatted precursors')
         if self.contains_metadata:

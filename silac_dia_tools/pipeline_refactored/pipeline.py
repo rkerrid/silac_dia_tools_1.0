@@ -14,7 +14,7 @@ import json
 import dask.dataframe as dd
 
 from .utils import manage_directories
-from .report import filtering_report
+from .report import filtering_report, precursor_report, protein_group_report, protein_intensities_report
 
 from silac_dia_tools.pipeline_refactored.preprocessor import Preprocessor 
 from silac_dia_tools.pipeline_refactored.silac_formatter import SilacFormatter 
@@ -68,7 +68,7 @@ class Pipeline:
         return pd.read_csv(os.path.join(self.path, self.meta), sep=',')
 
     def _initialize_pipeline_objects(self):
-        self.preprocessor = Preprocessor(self.path, self.params, self.meta_data)
+        self.preprocessor = Preprocessor(self.path, self.params, self.filter_cols, self.meta_data)
         self.formatter = SilacFormatter(self.path, self.filter_cols)
         self.precursor_rollup = PrecursorRollup(self.path)
         self.intensity_calculator = IntensityCalculator(self.path, self.contains_reference, self.pulse_channel)
@@ -117,7 +117,7 @@ class Pipeline:
     
     def generate_reports(self):
         if not self.contains_reference:
-            protein_intensities_report.create_report(self.path, self.params)
+            filtering_report.protein_intensities_report.create_report(self.path, self.params)
         filtering_report.create_report(self.filtered_report, self.contaminants, self.filtered_out, self.path, self.params)
         precursor_report.create_report(self.formatted_precursors, self.path, self.params)
         protein_group_report.create_report(self.protein_groups, self.path, self.params)

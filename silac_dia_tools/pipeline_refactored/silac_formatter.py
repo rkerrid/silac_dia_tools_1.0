@@ -16,8 +16,8 @@ class SilacFormatter:
 
     def format_silac_channels(self, report):
         print('Beginning formatting SILAC channels')
-        parsed_df = self._parse_data_for_channel_info(report)
-        combined_precursors = self._combine_modified_precursors(parsed_df)
+        # parsed_df = self._parse_data_for_channel_info(report)
+        combined_precursors = self._combine_modified_precursors(report)
         stacked_intensities = self._stack_intensities(combined_precursors)
         print('Finished formatting SILAC channels')
         return stacked_intensities
