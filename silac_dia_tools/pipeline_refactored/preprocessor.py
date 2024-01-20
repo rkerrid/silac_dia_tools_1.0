@@ -35,10 +35,10 @@ class Preprocessor:
         
             chunks.append(chunk)
             
-            if self.update:
-                print(f'Chunk {count} processed')
-            if count == 10:
-                break
+            # if self.update:
+            #     print(f'Chunk {count} processed')
+            # if count == 10:
+                # break
         df = pd.concat(chunks, ignore_index=True)
         print('Finished import')
         return df
