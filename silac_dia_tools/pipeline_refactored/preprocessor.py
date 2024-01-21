@@ -17,7 +17,7 @@ class Preprocessor:
         self.params = params
         self.chunk_size = 10000
         self.update = True
-        self.filter_cols = filter_cols
+        self.filter_cols = filter_cols 
 
     def import_report(self):
         print('Beginning import .tsv')
@@ -35,10 +35,10 @@ class Preprocessor:
         
             chunks.append(chunk)
             
-            # if self.update:
-            #     print(f'Chunk {count} processed')
-            # if count == 10:
-                # break
+            if self.update:
+                print(f'Chunk {count} processed')
+            if count == 10:
+                break
         df = pd.concat(chunks, ignore_index=True)
         print('Finished import')
         return df
@@ -52,7 +52,7 @@ class Preprocessor:
         return chunk
     
     def remove_cols(self, chunk):
-        cols = ['Run', 'Protein.Group', 'Precursor', 'Label',  'Precursor.Quantity','Ms1.Translated','Precursor.Translated'] + self.filter_cols
+        cols = ['Run', 'Protein.Group', 'Precursor', 'Label',  'Precursor.Quantity','Ms1.Translated','Precursor.Translated'] + self.filter_cols + ['Global.Q.Value']
         chunk = chunk[cols]
         return chunk
     
