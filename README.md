@@ -20,7 +20,7 @@ Adtitionally see example scripts (still in progress).
 
 Follow the steps below to install the package:
 
-First clone the repository to your directory - git clone [https://github.com/rkerrid/silac_dia_tools.git](https://github.com/rkerrid/silac_dia_tools_1.0.git)
+First clone the repository to your directory - git clone https://github.com/rkerrid/silac_dia_tools_1.0.git
 
 Then with conda:
 
