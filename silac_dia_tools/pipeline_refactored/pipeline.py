@@ -38,7 +38,7 @@ class Pipeline:
         self.relable_with_meta = self._confirm_metadata()
         self.meta_data = self._load_meta_data() if self.relable_with_meta else None
         self.params = self._load_params()
-        self.filter_cols = list(self.params['apply_filters'].keys()) + ['Lib.PG.Q.Value']
+        self.filter_cols = list(self.params['filter_cols'].keys())
         self._initialize_pipeline_objects()
 
     def _load_params(self):

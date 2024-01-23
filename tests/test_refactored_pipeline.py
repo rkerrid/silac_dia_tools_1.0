@@ -9,6 +9,8 @@ import numpy as np
 import operator
 import json
 import os
+import seaborn as sns 
+
 
 pd.set_option('display.max_columns', None)
 '''attempting to format the silac channels first then filter afterwards. Filter columns to keep in this step are:
@@ -25,6 +27,35 @@ additional columns may be required
 
 
 '''
+
+
+    
+def import_report(path):
+    print('Beginning import .tsv')
+    chunks = []
+    chunk_size = 10000
+    update = True
+    file_path = f"{path}report.tsv"
+
+    for count, chunk in enumerate(pd.read_table(file_path, sep="\t", chunksize=chunk_size), start=1):
+        chunk['Genes'] = chunk['Genes'].fillna('')
+        chunk['Protein.Group'] = chunk['Protein.Group'].str.cat(chunk['Genes'], sep='-')
+        
+        # chunk = add_label_col(chunk)
+        # chunk = add_precursor_col(chunk)
+        # chunk = remove_cols(chunk)
+        # print(chunk.columns.values.tolist())
+    
+        chunks.append(chunk)
+        
+        if update:
+            print(f'Chunk {count} processed')
+        # if count == 10:
+        #     break
+    df = pd.concat(chunks, ignore_index=True)
+    print('Finished import')
+    return df
+    
 def get_strict_params(parameter_file):
     json_path = f"C:/phd projects/silac_dia_tools1.0/silac_dia_tools/configs/{parameter_file}"
     with open(json_path, 'r') as file:
@@ -79,7 +110,6 @@ def test_filtering_by_label(df, params, label):
     return filtered_chunk, chunk_filtered_out
 
 
-import numpy as np
 
 def test_filtering_by_label_add_nan(df, params, label):
     filtering_condition = pd.Series([True] * len(df), index=df.index)
@@ -115,18 +145,6 @@ def count_nans_in_columns(df, labels):
     return nan_counts
 
 
-# def plot_data(df, label, title):
-#     # Plotting scatter plot
-#     plt.figure(figsize=(10, 6))
-#     plt.scatter(df[f'Translated.Quality {label}'], df[f'Precursor.Translated {label}'], color='blue')
-#     plt.scatter(df[f'Translated.Q.Value {label}'], df[f'Precursor.Translated {label}'], color='red')
-#     plt.xlabel(f'Translated.Quality {label}')
-#     plt.ylabel(f'Precursor.Translated {label}')
-#     plt.title(f'Scatter Plot of Precursor.Translated {label} vs Translated.Quality {label} {title}')
-#     plt.grid(True)
-#     plt.legend()
-#     plt.show()
-
 def plot_translated_qval(df, label, title):
     # Plotting scatter plot
     plt.figure(figsize=(10, 6))
@@ -148,36 +166,6 @@ def plot_translated_quality(df, label, title):
     plt.grid(True)
     plt.legend()  # This will display the legend with correct labeling of colors
     plt.show()
-
-
-
-# def apply_filter_conditions(df, params, suffix):
-#     filtering_condition = pd.Series([True] * len(df), index=df.index)
-#     ops = {
-#         "==": operator.eq, "<": operator.lt, "<=": operator.le,
-#         ">": operator.gt, ">=": operator.ge
-#     }
-#     for column, condition in params['apply_filters'].items():
-#         modified_column = column + suffix
-#         if modified_column in df.columns:
-#             op = ops[condition['op']]
-#             filtering_condition &= op(df[modified_column], condition['value'])
-#     return filtering_condition
-
-# def test_filtering_formatted(df, loose_params):
-#     print("called loose params filtering post heavy ")
-
-#     filtering_condition_M = apply_filter_conditions(df, loose_params, 'M')
-#     filtering_condition_L = apply_filter_conditions(df, loose_params, 'L')
-
-#     # Combine the conditions
-#     #must both be true to keep row
-#     combined_condition = filtering_condition_M & filtering_condition_L
-
-#     filtered_chunk = df[combined_condition]
-#     chunk_filtered_out = df[~combined_condition]
-
-#     return filtered_chunk, chunk_filtered_out
 
 
 
@@ -295,35 +283,84 @@ def assign_href_intensities(df):
     return df
     
 
-def create_combined_bar_plot(df):
-    columns = ['M to stack ratio', 'L to stack ratio', 'H normalized total', 'Total intensity']
+def counts_barplot(df, title):
+    # # Filter out rows where 'Precursor.Translated' is NaN or 0
+    # filtered_df = df[(df['Precursor.Translated'].notna()) & (df['Precursor.Translated'] != 0)]
     
-    # Calculate the total of non-NaN values for each column
-    totals = [df[col].dropna().sum() if col in df.columns else 0 for col in columns]
-
-    # Create a bar plot for these totals
-    plt.figure(figsize=(10, 6))
-    plt.bar(columns, totals, color=['blue', 'green', 'red', 'orange'])
-    plt.title('Total of Non-NaN Values for Each Column')
-    plt.ylabel('Total Value')
-    plt.xlabel('Column')
-
+    # # Group by 'Run' and 'Label', and get the sum (or count) of 'Precursor.Translated'
+    # grouped_df = filtered_df.groupby(['Run', 'Label'])['Precursor.Translated'].sum().reset_index()
+    
+    # # Plot
+    # plt.figure(figsize=(12, 6))
+    # sns.barplot(data=grouped_df, x='Run', y='Precursor.Translated', hue='Label')
+    # plt.xticks(rotation=90)  # Rotate labels for readability
+    # plt.title('Sum of Non-NaN, Non-Zero Precursor Translated Values per Run and Label')
+    # plt.ylabel('Sum of Precursor Translated')
+    # plt.xlabel('Run')
+    # plt.show()
+    
+    
+    # Filter out rows where 'Precursor.Translated' is NaN or 0
+    filtered_df = df[(df['Precursor.Translated'].notna()) & (df['Precursor.Translated'] != 0)]
+    
+    # Group by 'Run' and 'Label', and count the non-zero, non-NaN 'Precursor.Translated' values
+    grouped_df = filtered_df.groupby(['Run', 'Label'])['Precursor.Translated'].count().reset_index()
+    
+    # Plot
+    plt.figure(figsize=(12, 6))
+    sns.barplot(data=grouped_df, x='Run', y='Precursor.Translated', hue='Label')
+    plt.xticks(rotation=90)  # Rotate labels for readability
+    plt.title('Barplot of H M and L counts for {title} settings')
+    plt.ylabel('Count of Precursor Translated vals')
+    plt.xlabel('Run')
+    plt.tight_layout()
     plt.show()
 
+
 if __name__ == "__main__":
-    
+
  
    
-    
     path = 'G:/My Drive/Data/data/240112 poc4 test/new pipeline new stats/H refactored/'
     # path = 'G:/My Drive/Data\data/240112 poc4 test/new pipeline and stats/'
-    pipeline = pileline( f'{path}', 'filtering_parameters_strict.json', contains_reference = True, pulse_channel="M", meta='meta.csv')
-    # pipeline.make_metadata()
-    df = pipeline.preprocessor.import_report()
+    pipeline = pileline( f'{path}', 'test_params.json', contains_reference = True, pulse_channel="M", meta='meta.csv')
+    df, filtered_out = pipeline.preprocessor.import_report()  
+    counts_barplot(df, 'without loose postfiltering')
+
+
+# You can then inspect duplicates_df to understand which precursors are causing duplicates
+    
+    
+    
+    # # List of columns to check for duplicates
+    # cols = ['Run', 'Protein.Group', 'Precursor', 'Label',  'Precursor.Quantity','Ms1.Translated','Precursor.Translated']  + ['Global.Q.Value','RT']
+    # # Exclude columns used for grouping from the duplicate check
+    # cols_to_check = [col for col in cols if col not in ['Run', 'Protein.Group', 'Precursor', 'Label']]
+    
+    # # Apply the custom function to each group
+    # grouped = df.groupby(['Run', 'Protein.Group', 'Precursor', 'Label'])
+    # is_duplicate_series = grouped.transform(lambda x: check_duplicates(x, cols_to_check))
+
+    # # Flatten the result
+    # is_duplicate_series = is_duplicate_series.iloc[:, 0]
+
+    # # Add the 'is_duplicate' column to the original DataFrame
+    # df['is_duplicate'] = is_duplicate_series
+
+    # # Filter the DataFrame
+    # df = df[df['is_duplicate'] == True][['Run', 'Protein.Group', 'Precursor', 'Label'] + cols_to_check]
+    # control_df = df[df['Run'] == 'Janice_20231223_AJW_HSdia_H_control_I']
+    
+    
+ 
+
+    
+    
+    
     # print(df.columns.values.tolist())
-    df = test_formatting(df)
-    # print(df.head())
-    strict_parameters = get_strict_params('filtering_parameters_strict.json')
+    # df = test_formatting(df)
+    # # print(df.head())
+    # strict_parameters = get_strict_params('filtering_parameters_strict.json')
     # print(strict_parameters)
     
     # label= 'M'
@@ -333,91 +370,35 @@ if __name__ == "__main__":
     
     # filter by H channel
     
-    df_filt_h, df_out_h = test_filtering_by_label(df, strict_parameters, 'H')
+    # df_filt_h, df_out_h = test_filtering_by_label(df, strict_parameters, 'H')
     
     
-    # label= 'M'
-    # plot_hl(df, label, 'H vs M')
-    # label= 'L'
-    # plot_hl(df, label, 'H vs L')
-    # ic(df_filt)
-    # ic(df_out)
-    # plot_translated_qval(df,'H', 'before df')
-    # plot_translated_qval(df_filt, 'H', 'filtered df')
-    # plot_translated_qval(df_out,'H', 'filtered out df')
-    
-    # plot_translated_qval(df,'L', 'before df')
-    # plot_translated_qval(df_filt, 'L', 'filtered df')
-    # plot_translated_qval(df_out,'L', 'filtered out df')
-    
-    # plot_translated_qval(df,'M', 'before df')
-    # plot_translated_qval(df_filt, 'M', 'filtered df')
-    # plot_translated_qval(df_out,'M', 'filtered out df')
-    
-    
-    
-    # plot_translated_quality(df,'H', 'before df')
-    # plot_translated_quality(df_filt, 'H', 'filtered df')
-    # plot_translated_quality(df_out,'H', 'filtered out df')
-    
-    # plot_translated_quality(df,'L', 'before df')
-    # plot_translated_quality(df_filt, 'L', 'filtered df')
-    # plot_translated_quality(df_out,'L', 'filtered out df')
-    
-    # plot_translated_quality(df,'M', 'before df')
-    # plot_translated_quality(df_filt, 'M', 'filtered df')
-    # plot_translated_quality(df_out,'M', 'filtered out df')
-    
-    # filter other channels with loose filters
-    nan_m_before =count_nans_in_columns(df_filt_h, "M")
-    nan_l_before =count_nans_in_columns(df_filt_h, "L")
-    # add nans for m and l thta dont pass loose
-    loose_params = get_loose_params('filtering_parameters.json')
-    df_filt_h = test_filtering_by_label_add_nan(df_filt_h, loose_params, 'M') # potential bug where it doesnt filter the global.pg.q that was added
-    nan_m = count_nans_in_columns(df_filt_h, "M")
-    df_filt_h= test_filtering_by_label_add_nan(df_filt_h, loose_params, 'L')
-    nan_l =count_nans_in_columns(df_filt_h, "L")
-    
-    df_complete = drop_filter_cols(df_filt_h)
-    ic(df_complete)
-    # ic(df.columns.values.tolist())
-    df = df_complete.copy()
-    df = href_intensitie(df) 
-    print('finished renaming')
-    print(df.columns.values.tolist())
-    # ic(df)
-    df = assign_href_intensities(df)
-    cols = ['Run', 'Protein.Group', 'Lib.PG.Q.Value', 'M to stack ratio', 'L to stack ratio', 'H normalized total intensity','Total intensity']
-    df = df[cols]
-    ic(df)
-    create_combined_bar_plot(df)
-    
-    # print(df.columns.values.tolist())
-    # plot_translated_qval(df_filt,'H', 'before (after h filt loose on other channels) df')
-    # plot_translated_qval(df_filt_all, 'H', 'after (after h filt loose on other channels) df')
-    # plot_translated_qval(df_filt_out,'H', 'filtered out after (after h filt loose on other channels)')
-    
-    # plot_translated_qval(df_filt,'L', 'before (after h filt loose on other channels) df')
-    # plot_translated_qval(df_filt_all, 'L', 'after (after h filt loose on other channels) df')
-    # plot_translated_qval(df_filt_out,'L', 'filtered out after (after h filt loose on other channels)')
-    
-    # plot_translated_qval(df_filt,'M', 'before (after h filt loose on other channels) df')
-    # plot_translated_qval(df_filt_all, 'M', 'after (after h filt loose on other channels) df')
-    # plot_translated_qval(df_filt_out,'M', 'filtered out after (after h filt loose on other channels)')
    
     
+    # # filter other channels with loose filters
+    # nan_m_before =count_nans_in_columns(df_filt_h, "M")
+    # nan_l_before =count_nans_in_columns(df_filt_h, "L")
+    # # add nans for m and l thta dont pass loose
+    # loose_params = get_loose_params('filtering_parameters.json')
+    # df_filt_h = test_filtering_by_label_add_nan(df_filt_h, loose_params, 'M') # potential bug where it doesnt filter the global.pg.q that was added
+    # nan_m = count_nans_in_columns(df_filt_h, "M")
+    # df_filt_h= test_filtering_by_label_add_nan(df_filt_h, loose_params, 'L')
+    # nan_l =count_nans_in_columns(df_filt_h, "L")
     
-    # plot_translated_quality(df_filt,'H', 'before (after h filt loose on other channels) df')
-    # plot_translated_quality(df_filt_all, 'H', 'after (after h filt loose on other channels) df')
-    # plot_translated_quality(df_filt_out,'H', 'filtered out after (after h filt loose on other channels)')
+    # df_complete = drop_filter_cols(df_filt_h)
+    # ic(df_complete)
+    # # ic(df.columns.values.tolist())
+    # df = df_complete.copy()
+    # df = href_intensitie(df) 
+    # print('finished renaming')
+    # print(df.columns.values.tolist())
+    # # ic(df)
+    # df = assign_href_intensities(df)
+    # cols = ['Run', 'Protein.Group', 'Lib.PG.Q.Value', 'M to stack ratio', 'L to stack ratio', 'H normalized total intensity','Total intensity']
+    # df = df[cols]
+    # ic(df)
+    # create_combined_bar_plot(df)
     
-    # plot_translated_quality(df_filt,'L', 'before (after h filt loose on other channels) df')
-    # plot_translated_quality(df_filt_all, 'L', 'after (after h filt loose on other channels) df')
-    # plot_translated_qval(df_filt_out,'L', 'filtered out after (after h filt loose on other channels)')
-    
-    # plot_translated_quality(df_filt,'M', 'before (after h filt loose on other channels) df')
-    # plot_translated_quality(df_filt_all, 'M', 'after (after h filt loose on other channels) df')
-    # plot_translated_quality(df_filt_out,'M', 'filtered out after (after h filt loose on other channels)') 
     
     
     # label= 'M'
