@@ -29,45 +29,6 @@ additional columns may be required
 '''
 
 
-    
-def import_report(path):
-    print('Beginning import .tsv')
-    chunks = []
-    chunk_size = 10000
-    update = True
-    file_path = f"{path}report.tsv"
-
-    for count, chunk in enumerate(pd.read_table(file_path, sep="\t", chunksize=chunk_size), start=1):
-        chunk['Genes'] = chunk['Genes'].fillna('')
-        chunk['Protein.Group'] = chunk['Protein.Group'].str.cat(chunk['Genes'], sep='-')
-        
-        # chunk = add_label_col(chunk)
-        # chunk = add_precursor_col(chunk)
-        # chunk = remove_cols(chunk)
-        # print(chunk.columns.values.tolist())
-    
-        chunks.append(chunk)
-        
-        if update:
-            print(f'Chunk {count} processed')
-        # if count == 10:
-        #     break
-    df = pd.concat(chunks, ignore_index=True)
-    print('Finished import')
-    return df
-    
-def get_strict_params(parameter_file):
-    json_path = f"C:/phd projects/silac_dia_tools1.0/silac_dia_tools/configs/{parameter_file}"
-    with open(json_path, 'r') as file:
-        return json.load(file)
-
-def get_loose_params(parameter_file):
-    json_path = f"C:/phd projects/silac_dia_tools1.0/silac_dia_tools/configs/{parameter_file}"
-    with open(json_path, 'r') as file:
-        return json.load(file)
-
-
-
 def test_formatting(df):
     
    # try this later 
@@ -89,47 +50,7 @@ def test_formatting(df):
    # Display the reformatted DataFrame
    return merged_df
 
-def test_filtering_by_label(df, params, label):
-    # initialize boolen mask the size of the df to be switched to true or false when looping through columns and conditions in params
-    filtering_condition = pd.Series([True] * len(df), index=df.index)
-    ops = {
-        "==": operator.eq, "<": operator.lt, "<=": operator.le,
-        ">": operator.gt, ">=": operator.ge
-    }
 
-    # Loop through the filtering columns and append ' H'
-    for column, condition in params['apply_filters'].items():
-        modified_column = column + f' {label}'  # Append ' H' to the column name
-        if modified_column in df.columns:  # Check if the modified column exists in the DataFrame
-            op = ops[condition['op']]
-            #&= means if the row hasnt passed a previous filter it will remain False
-            filtering_condition &= op(df[modified_column], condition['value'])
-
-    filtered_chunk = df[filtering_condition]
-    chunk_filtered_out = df[~filtering_condition]
-    return filtered_chunk, chunk_filtered_out
-
-
-
-def test_filtering_by_label_add_nan(df, params, label):
-    filtering_condition = pd.Series([True] * len(df), index=df.index)
-    ops = {
-        "==": operator.eq, "<": operator.lt, "<=": operator.le,
-        ">": operator.gt, ">=": operator.ge
-    }
-
-    for column, condition in params['apply_filters'].items():
-        modified_column = f'{column} {label}'
-        if modified_column in df.columns:
-            op = ops[condition['op']]
-            filtering_condition &= op(df[modified_column], condition['value'])
-            filtered_chunk = df.copy()
-            nan_cols = [f'Precursor.Translated {label}', f'Precursor.Quantity {label}', f'Ms1.Translated {label}']
-            for col in nan_cols:
-                if col in df.columns:
-                    filtered_chunk.loc[~filtering_condition, col] = np.nan
-
-    return filtered_chunk
 
 def count_nans_in_columns(df, labels):
     # Columns to check for NaNs, adjust these as per your DataFrame's structure
@@ -284,21 +205,6 @@ def assign_href_intensities(df):
     
 
 def counts_barplot(df, title):
-    # # Filter out rows where 'Precursor.Translated' is NaN or 0
-    # filtered_df = df[(df['Precursor.Translated'].notna()) & (df['Precursor.Translated'] != 0)]
-    
-    # # Group by 'Run' and 'Label', and get the sum (or count) of 'Precursor.Translated'
-    # grouped_df = filtered_df.groupby(['Run', 'Label'])['Precursor.Translated'].sum().reset_index()
-    
-    # # Plot
-    # plt.figure(figsize=(12, 6))
-    # sns.barplot(data=grouped_df, x='Run', y='Precursor.Translated', hue='Label')
-    # plt.xticks(rotation=90)  # Rotate labels for readability
-    # plt.title('Sum of Non-NaN, Non-Zero Precursor Translated Values per Run and Label')
-    # plt.ylabel('Sum of Precursor Translated')
-    # plt.xlabel('Run')
-    # plt.show()
-    
     
     # Filter out rows where 'Precursor.Translated' is NaN or 0
     filtered_df = df[(df['Precursor.Translated'].notna()) & (df['Precursor.Translated'] != 0)]
@@ -308,12 +214,84 @@ def counts_barplot(df, title):
     
     # Plot
     plt.figure(figsize=(12, 6))
-    sns.barplot(data=grouped_df, x='Run', y='Precursor.Translated', hue='Label')
+    barplot = sns.barplot(data=grouped_df, x='Run', y='Precursor.Translated', hue='Label')
     plt.xticks(rotation=90)  # Rotate labels for readability
-    plt.title('Barplot of H M and L counts for {title} settings')
-    plt.ylabel('Count of Precursor Translated vals')
+    plt.xticks(rotation=90)  # Rotate labels for readability
+    
+    # Iterate over the bars
+    for bar in barplot.patches:
+        # Using the bar's height to place the label
+        barplot.text(bar.get_x() + bar.get_width() / 2., bar.get_height(),
+                     int(bar.get_height()),  # The label
+                     ha='center', va='bottom',
+                     rotation=45)  # Rotate label
+    
+    plt.title(f'Barplot of H M and L precursor counts: {title} settings')
+    plt.ylabel('Count of valid vals (Precursor.Translated)')
     plt.xlabel('Run')
     plt.tight_layout()
+    
+    save_path = f'G:/My Drive/Data/figures/{title}_Precursor.Translated.jpeg'
+    plt.savefig(save_path, format='jpeg', dpi=300)
+    
+    plt.show()
+    
+    # Filter out rows where 'Precursor.Translated' is NaN or 0
+    filtered_df = df[(df['Ms1.Translated'].notna()) & (df['Ms1.Translated'] != 0)]
+    
+    # Group by 'Run' and 'Label', and count the non-zero, non-NaN 'Precursor.Translated' values
+    grouped_df = filtered_df.groupby(['Run', 'Label'])['Ms1.Translated'].count().reset_index()
+    
+    # Plot
+    plt.figure(figsize=(12, 6))
+    barplot = sns.barplot(data=grouped_df, x='Run', y='Ms1.Translated', hue='Label')
+    plt.xticks(rotation=90)  # Rotate labels for readability
+    plt.xticks(rotation=90)  # Rotate labels for readability
+    # Iterate over the bars
+    for bar in barplot.patches:
+        # Using the bar's height to place the label
+        barplot.text(bar.get_x() + bar.get_width() / 2., bar.get_height(),
+                     int(bar.get_height()),  # The label
+                     ha='center', va='bottom',
+                     rotation=45)  # Rotate label
+    
+    plt.title(f'Barplot of H M and L precursor counts: {title} settings')
+    plt.ylabel('Count of valid vals (Ms1.Translated)')
+    plt.xlabel('Run')
+    plt.tight_layout()
+    
+    save_path = f'G:/My Drive/Data/figures/{title}_Ms1.Translated.jpeg'
+    plt.savefig(save_path, format='jpeg', dpi=300)
+    
+    plt.show()
+    
+    # Filter out rows where 'Precursor.Translated' is NaN or 0
+    filtered_df = df[(df['Precursor.Quantity'].notna()) & (df['Precursor.Quantity'] != 0)]
+    
+    # Group by 'Run' and 'Label', and count the non-zero, non-NaN 'Precursor.Translated' values
+    grouped_df = filtered_df.groupby(['Run', 'Label'])['Precursor.Quantity'].count().reset_index()
+    
+    # Plot
+    plt.figure(figsize=(12, 6))
+    barplot = sns.barplot(data=grouped_df, x='Run', y='Precursor.Quantity', hue='Label')
+    plt.xticks(rotation=90)  # Rotate labels for readability
+    # Iterate over the bars
+    for bar in barplot.patches:
+        # Using the bar's height to place the label
+        barplot.text(bar.get_x() + bar.get_width() / 2., bar.get_height(),
+                     int(bar.get_height()),  # The label
+                     ha='center', va='bottom',
+                     rotation=45)  # Rotate label
+    
+    plt.title(f'Barplot of H M and L precursor counts: {title} settings')
+    plt.ylabel('Count of valid vals (Precursor.Quantity)')
+    plt.xlabel('Run')
+    plt.tight_layout()
+    
+    save_path = f'G:/My Drive/Data/figures/{title}_Precursor.Quantity.jpeg'
+    plt.savefig(save_path, format='jpeg', dpi=300)
+    
+    
     plt.show()
 
 
@@ -324,8 +302,9 @@ if __name__ == "__main__":
     path = 'G:/My Drive/Data/data/240112 poc4 test/new pipeline new stats/H refactored/'
     # path = 'G:/My Drive/Data\data/240112 poc4 test/new pipeline and stats/'
     pipeline = pileline( f'{path}', 'test_params.json', contains_reference = True, pulse_channel="M", meta='meta.csv')
-    df, filtered_out = pipeline.preprocessor.import_report()  
-    counts_barplot(df, 'without loose postfiltering')
+    df, filtered_out, contaminants = pipeline.preprocessor.import_report() 
+    counts_barplot(df, 'L & M loose filtering')
+    counts_barplot(filtered_out, 'L & M loose filtering (df out)')
 
 
 # You can then inspect duplicates_df to understand which precursors are causing duplicates
