@@ -50,9 +50,12 @@ class Preprocessor:
             chunk = self.apply_nan_by_loose_filtering(chunk,"M")
             contam_chunk = self.identify_contaminants(chunk)
             
+            #remove filter cols before concatinating all dfs and returning
+            chunk.drop(self.filter_cols, axis=1, inplace=True)
             chunks.append(chunk)
             filtered_out.append(chunk_filtered_out)
             contaminants.append(contam_chunk)
+            
             if self.update:
                 print(f'Chunk {count} processed')
             # if count == 1:
@@ -78,12 +81,15 @@ class Preprocessor:
             
         return chunk
 
-    
     def add_label_col(self, chunk):
+        # Extract the label and add it as a new column
         chunk['Label'] = chunk['Precursor.Id'].str.extract(r'\(SILAC-(K|R)-([HML])\)')[1]
+    
+        # Remove the '(SILAC-K|R-([HML]))' part from the 'Precursor.Id' string
+        chunk['Precursor.Id'] = chunk['Precursor.Id'].str.replace(r'\(SILAC-(K|R)-[HML]\)', '', regex=True)
+    
         return chunk
-    
-    
+
     def remove_cols(self, chunk):
         cols = ['Run', 'Protein.Group', 'Precursor.Id', 'Label',  'Precursor.Quantity','Ms1.Translated','Precursor.Translated'] + self.filter_cols 
         chunk = chunk[cols]
@@ -126,33 +132,6 @@ class Preprocessor:
             chunk_filtered_out = pd.DataFrame(columns=chunk.columns)
     
         return filtered_chunk, chunk_filtered_out
-
-    # def filter_spikein_strict(self, chunk, label):
-    #     ops = {
-    #         "==": operator.eq, "<": operator.lt, "<=": operator.le,
-    #         ">": operator.gt, ">=": operator.ge
-    #     }
-    
-    #     # Initialize a boolean mask for filtering
-    #     h_filtering_condition = pd.Series([False] * len(chunk), index=chunk.index)
-    
-    #     # Apply conditions only to 'H' labeled rows
-    #     if label in chunk['Label'].values:
-    #         for column, condition in self.params['apply_strict_filters'].items():
-    #             op = ops[condition['op']]
-    #             # Create a condition mask only for 'H' rows
-    #             condition_mask = op(chunk[column], condition['value']) & (chunk['Label'] == label)
-    #             h_filtering_condition |= condition_mask
-    
-    #     # Select only 'H' rows that do not meet the condition
-    #     h_rows_to_filter_out = ~h_filtering_condition & (chunk['Label'] == label)
-    #     # Keep all non-'H' rows and 'H' rows that meet the condition
-    #     filtered_chunk = chunk[~h_rows_to_filter_out]
-    #     # 'H' rows filtered out
-    #     chunk_filtered_out = chunk[h_rows_to_filter_out]
-    
-    #     return filtered_chunk, chunk_filtered_out
-
 
     def apply_nan_by_loose_filtering(self, chunk, label):
         filtering_condition = pd.Series([True] * len(chunk), index=chunk.index)

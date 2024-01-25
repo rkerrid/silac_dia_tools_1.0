@@ -1,6 +1,7 @@
 
 from icecream import ic
 from silac_dia_tools.pipeline_refactored.pipeline import Pipeline as pileline
+from silac_dia_tools.pipeline_refactored import generate_protein_groups
 # from silac_dia_tools.pipeline_refactored import precursor_rollup  
 import pandas as pd 
 import matplotlib.pyplot as plt
@@ -29,26 +30,49 @@ additional columns may be required
 '''
 
 
-def test_formatting(df):
+# def test_formatting(df):
     
-   # try this later 
+#    # try this later 
    
-   # Pivot for each label
-   pivot_L = df[df['Label'] == 'L'].pivot_table(index=['Run', 'Protein.Group', 'Precursor'], aggfunc='first').add_suffix(' L')
-   # ic(pivot_L)
-   pivot_M = df[df['Label'] == 'M'].pivot_table(index=['Run', 'Protein.Group', 'Precursor'], aggfunc='first').add_suffix(' M')
-   # ic(pivot_M)
-   pivot_H = df[df['Label'] == 'H'].pivot_table(index=['Run', 'Protein.Group', 'Precursor'], aggfunc='first').add_suffix(' H')
-   # ic(pivot_H)
-   # Merge the pivoted DataFrames
-   merged_df = pd.concat([pivot_L, pivot_M, pivot_H], axis=1)
-   # print('before pivot')
-   # ic(df)
-   # Reset index to make 'Run', 'Protein.Group', and 'Precursor' as columns
-   merged_df.reset_index(inplace=True)
+#    # Pivot for each label
+#    pivot_L = df[df['Label'] == 'L'].pivot_table(index=['Run', 'Protein.Group', 'Precursor.Id'], aggfunc='first').add_suffix(' L')
+#    pivot_M = df[df['Label'] == 'M'].pivot_table(index=['Run', 'Protein.Group', 'Precursor.Id'], aggfunc='first').add_suffix(' M')
+#    pivot_H = df[df['Label'] == 'H'].pivot_table(index=['Run', 'Protein.Group', 'Precursor.Id'], aggfunc='first').add_suffix(' H')
+#    # Merge the pivoted DataFrames
+#    merged_df = pd.concat([pivot_L, pivot_M, pivot_H], axis=1)
+#    # Reset index to make 'Run', 'Protein.Group', and 'Precursor' as columns
+#    merged_df.reset_index(inplace=True)
 
-   # Display the reformatted DataFrame
-   return merged_df
+#    # remove all rows that contain a NaN under the Label H column (i.e. no H precurosr is present for that row)
+#    if 'Label H' in df.columns:
+#        df = merged_df.dropna(subset=['Label H'])
+#    else:
+#        print("Column 'Label H' not found in DataFrame")
+#        print(merged_df.columns.values.tolist())
+#        df = merged_df
+#    return df
+
+def test_formatting(df):
+    # Pivot for each label
+    pivot_L = df[df['Label'] == 'L'].pivot_table(index=['Run', 'Protein.Group', 'Precursor.Id'], aggfunc='first').add_suffix(' L')
+    pivot_M = df[df['Label'] == 'M'].pivot_table(index=['Run', 'Protein.Group', 'Precursor.Id'], aggfunc='first').add_suffix(' M')
+    pivot_H = df[df['Label'] == 'H'].pivot_table(index=['Run', 'Protein.Group', 'Precursor.Id'], aggfunc='first').add_suffix(' H')
+    
+    # Merge the pivoted DataFrames
+    merged_df = pd.concat([pivot_L, pivot_M, pivot_H], axis=1)
+    # Reset index to make 'Run', 'Protein.Group', and 'Precursor.Id' as columns
+    merged_df.reset_index(inplace=True)
+
+    # remove all rows that contain a NaN under the Label H column (i.e., no H precursor is present for that row)
+    if 'Label H' in merged_df.columns:
+        # Apply dropna on merged_df instead of df
+        merged_df = merged_df.dropna(subset=['Precursor.Quantity H'])
+    else:
+        print("Column 'Label H' not found in DataFrame")
+        print(merged_df.columns.values.tolist())
+    
+    return merged_df
+
 
 
 
@@ -294,19 +318,144 @@ def counts_barplot(df, title):
     
     plt.show()
 
+# def barplot_after_all_filtering(df):
+    
+#     # Calculate non-NaN counts for each 'Run'
+#     grouped = df.groupby('Run')[['Precursor.Quantity H', 'Precursor.Quantity M', 'Precursor.Quantity L']].count().reset_index()
+    
+#     # Plotting
+#     fig, ax = plt.subplots(figsize=(10, 6))
+    
+#     # Locations of the groups on the x-axis
+#     x = range(len(grouped))
+    
+#     # Plot each of the quantities as a separate bar
+#     ax.bar(x, grouped['Precursor.Quantity H'], width=0.2, label='H', align='center')
+#     ax.bar(x, grouped['Precursor.Quantity M'], width=0.2, label='M', align='edge')
+#     ax.bar(x, grouped['Precursor.Quantity L'], width=0.2, label='L', align='edge')
+    
+#     # Set the labels and titles
+#     ax.set_ylabel('Non-NaN Counts')
+#     ax.set_title('Non-NaN Counts of Precursor Quantities by Run')
+#     ax.set_xticks(x)
+#     ax.set_xticklabels(grouped['Run'], rotation=45)
+#     ax.legend()
+    
+#     # Show the plot
+#     plt.show()
+
+
+def barplot_after_all_filtering(df, title):
+    # Calculate non-NaN counts for each 'Run' and 'Label'
+    counts_h = df.groupby('Run')['Precursor.Quantity H'].count().reset_index(name='Count')
+    counts_h['Label'] = 'H'
+    
+    counts_l = df.groupby('Run')['Precursor.Quantity L'].count().reset_index(name='Count')
+    counts_l['Label'] = 'L'
+    
+    # counts_m = df.groupby('Run')['Precursor.Quantity M'].count().reset_index(name='Count')
+    # counts_m['Label'] = 'M'
+    # Combine the counts into a single DataFrame
+    combined_counts = pd.concat([counts_h, counts_l ]) #, counts_m
+
+    # Plot using Seaborn
+    plt.figure(figsize=(12, 6))
+    barplot = sns.barplot(data=combined_counts, x='Run', y='Count', hue='Label')
+
+    # Rotate labels for readability
+    plt.xticks(rotation=90)
+
+    # Iterate over the bars for labels
+    for bar in barplot.patches:
+        # Using the bar's height to place the label
+        barplot.text(bar.get_x() + bar.get_width() / 2., bar.get_height(),
+                     int(bar.get_height()),  # The label
+                     ha='center', va='bottom',
+                     rotation=45)  # Rotate label
+
+    plt.title(f'Barplot of H, M, and L Precursor Counts: {title}')
+    plt.ylabel('Count of Non-NaN Values')
+    plt.xlabel('Run')
+    plt.legend(title='Label', bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    plt.tight_layout()
+    
+    
+    save_path = f'G:/My Drive/Data/figures/{title}_Precursor.Quantity.jpeg'
+    plt.savefig(save_path, format='jpeg', dpi=300)
+    
+    plt.show()
+    
+def barplot_after_all_filtering_benchmark(df, title):
+    
+
+    # Calculate non-NaN counts for each 'Run' and 'Label'
+    counts_h = df.groupby('Run')['Precursor.Quantity H'].count().reset_index(name='Count')
+    counts_h['Label'] = 'H'
+    
+    counts_l = df.groupby('Run')['Precursor.Quantity L'].count().reset_index(name='Count')
+    counts_l['Label'] = 'L'
+    
+    # counts_m = df.groupby('Run')['Precursor.Quantity M'].count().reset_index(name='Count')
+    # counts_m['Label'] = 'M'
+    # Combine the counts into a single DataFrame
+    combined_counts = pd.concat([counts_h, counts_l ]) #, counts_m
+
+    # Plot using Seaborn
+    plt.figure(figsize=(12, 6))
+    barplot = sns.barplot(data=combined_counts, x='Run', y='Count', hue='Label')
+
+    # Rotate labels for readability
+    plt.xticks(rotation=90)
+
+    # Iterate over the bars for labels
+    for bar in barplot.patches:
+        # Using the bar's height to place the label
+        barplot.text(bar.get_x() + bar.get_width() / 2., bar.get_height(),
+                     int(bar.get_height()),  # The label
+                     ha='center', va='bottom',
+                     rotation=45)  # Rotate label
+
+    plt.title(f'Barplot of H, M, and L Precursor Counts: {title}')
+    plt.ylabel('Count of Non-NaN Values')
+    plt.xlabel('Run')
+    plt.legend(title='Label', bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    plt.tight_layout()
+    
+    
+    save_path = f'G:/My Drive/Data/figures/{title}_Precursor.Quantity.jpeg'
+    plt.savefig(save_path, format='jpeg', dpi=300)
+    
+    plt.show()
+        
+        
+        
+    
 
 if __name__ == "__main__":
 
  
    
     path = 'G:/My Drive/Data/data/240112 poc4 test/new pipeline new stats/H refactored/'
+    path = 'G:/My Drive/Data/data/20240125 bm filter h then loose filter l/'
     # path = 'G:/My Drive/Data\data/240112 poc4 test/new pipeline and stats/'
-    pipeline = pileline( f'{path}', 'test_params.json', contains_reference = True, pulse_channel="M", meta='meta.csv')
+    pipeline = pileline( f'{path}', 'test_params.json', contains_reference = True, pulse_channel="H", meta='meta.csv')
     df, filtered_out, contaminants = pipeline.preprocessor.import_report() 
-    counts_barplot(df, 'L & M loose filtering')
-    counts_barplot(filtered_out, 'L & M loose filtering (df out)')
-
-
+    # counts_barplot(df, 'L & M loose filtering')
+    
+    df = generate_protein_groups.format_silac_channels(df)
+    
+    
+    ecoli_df = df[df['Protein.Group'].str.contains('ECOLI_')]
+    ecoli_df_rep1 = ecoli_df[ecoli_df['Run'].str.contains('_3')]
+    
+    human_df = df[df['Protein.Group'].str.contains('HUMAN_')]
+    human_df_rep1 = human_df[human_df['Run'].str.contains('_3')]
+    
+    
+    barplot_after_all_filtering_benchmark(ecoli_df_rep1, 'Ecoli After filter by H then loose')
+    barplot_after_all_filtering_benchmark(human_df_rep1, 'Human After filter by H then loose')
 # You can then inspect duplicates_df to understand which precursors are causing duplicates
     
     
