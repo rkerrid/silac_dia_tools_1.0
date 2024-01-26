@@ -2,6 +2,7 @@
 from icecream import ic
 from silac_dia_tools.pipeline_refactored.pipeline import Pipeline as pileline
 from silac_dia_tools.pipeline_refactored import generate_protein_groups
+from silac_dia_tools.pipeline_refactored import calculate_intensities_r
 # from silac_dia_tools.pipeline_refactored import precursor_rollup  
 import pandas as pd 
 import matplotlib.pyplot as plt
@@ -353,10 +354,10 @@ def barplot_after_all_filtering(df, title):
     counts_l = df.groupby('Run')['Precursor.Quantity L'].count().reset_index(name='Count')
     counts_l['Label'] = 'L'
     
-    # counts_m = df.groupby('Run')['Precursor.Quantity M'].count().reset_index(name='Count')
-    # counts_m['Label'] = 'M'
+    counts_m = df.groupby('Run')['Precursor.Quantity M'].count().reset_index(name='Count')
+    counts_m['Label'] = 'M'
     # Combine the counts into a single DataFrame
-    combined_counts = pd.concat([counts_h, counts_l ]) #, counts_m
+    combined_counts = pd.concat([counts_h, counts_l, counts_m ]) #, counts_m
 
     # Plot using Seaborn
     plt.figure(figsize=(12, 6))
@@ -399,7 +400,7 @@ def barplot_after_all_filtering_benchmark(df, title):
     # counts_m = df.groupby('Run')['Precursor.Quantity M'].count().reset_index(name='Count')
     # counts_m['Label'] = 'M'
     # Combine the counts into a single DataFrame
-    combined_counts = pd.concat([counts_h, counts_l ]) #, counts_m
+    combined_counts = pd.concat([counts_h, counts_l ]) 
 
     # Plot using Seaborn
     plt.figure(figsize=(12, 6))
@@ -429,9 +430,7 @@ def barplot_after_all_filtering_benchmark(df, title):
     
     plt.show()
         
-        
-        
-    
+
 
 if __name__ == "__main__":
 
@@ -439,23 +438,42 @@ if __name__ == "__main__":
    
     path = 'G:/My Drive/Data/data/240112 poc4 test/new pipeline new stats/H refactored/'
     path = 'G:/My Drive/Data/data/20240125 bm filter h then loose filter l/'
+    path = 'G:/My Drive/Data/data/eIF4F optimization/'
     # path = 'G:/My Drive/Data\data/240112 poc4 test/new pipeline and stats/'
-    pipeline = pileline( f'{path}', 'test_params.json', contains_reference = True, pulse_channel="H", meta='meta.csv')
+    pipeline = pileline( f'{path}', 'test_params.json', contains_reference = True, pulse_channel="M", meta='meta.csv')
     df, filtered_out, contaminants = pipeline.preprocessor.import_report() 
     # counts_barplot(df, 'L & M loose filtering')
     
+    # precursor and protein groups
+    # generate precursor report.tsv with precursor.quantity replaced by summing up precursor tranlsated vals
     df = generate_protein_groups.format_silac_channels(df)
+    # split data (at this point will only work with pre_df and work on median of bot ms1 and pre later)
+    pre_df, ms1_df = generate_protein_groups.split_data_by_intensity_type(df)
+    # calculate precursor ratios and format for input into dlfq
+    pre_df = generate_protein_groups.calculate_precursor_ratios(pre_df, 'Precursor.Translated')
+    # calculate protein groups without normalizing by either method
+    protein_groups_unnormalized = generate_protein_groups.compute_protein_level(pre_df)
+    
+    # Calculate intensities
+    href_df = calculate_intensities_r.calculate_href_intensities(protein_groups_unnormalized)
+    
+    # output href and unnormalized protein groups.csv
+    dfs = calculate_intensities_r.output_protein_groups(href_df, 'href', path)
     
     
-    ecoli_df = df[df['Protein.Group'].str.contains('ECOLI_')]
-    ecoli_df_rep1 = ecoli_df[ecoli_df['Run'].str.contains('_3')]
-    
-    human_df = df[df['Protein.Group'].str.contains('HUMAN_')]
-    human_df_rep1 = human_df[human_df['Run'].str.contains('_3')]
     
     
-    barplot_after_all_filtering_benchmark(ecoli_df_rep1, 'Ecoli After filter by H then loose')
-    barplot_after_all_filtering_benchmark(human_df_rep1, 'Human After filter by H then loose')
+    # barplot_after_all_filtering(df, 'eIF4F Pilot (loose post filtering)')
+    
+    # ecoli_df = df[df['Protein.Group'].str.contains('ECOLI_')]
+    # ecoli_df_rep1 = ecoli_df[ecoli_df['Run'].str.contains('_3')]
+    
+    # human_df = df[df['Protein.Group'].str.contains('HUMAN_')]
+    # human_df_rep1 = human_df[human_df['Run'].str.contains('_3')]
+    
+    
+    # barplot_after_all_filtering_benchmark(ecoli_df_rep1, 'Ecoli After filter by H then loose')
+    # barplot_after_all_filtering_benchmark(human_df_rep1, 'Human After filter by H then loose')
 # You can then inspect duplicates_df to understand which precursors are causing duplicates
     
     

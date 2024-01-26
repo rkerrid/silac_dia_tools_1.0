@@ -8,6 +8,7 @@ Created on Sun Jan 14 18:27:52 2024
 import pandas as pd
 import numpy as np
 import operator
+import time 
 
 from icecream import ic
 
@@ -17,12 +18,13 @@ class Preprocessor:
         self.meta_data = meta_data
         # self.contains_metadata = meta_data is not None
         self.params = params
-        self.chunk_size = 100000
+        self.chunk_size = 180000
         self.update = True
         self.filter_cols = filter_cols 
-
+        
     def import_report(self):
         print('Beginning import report.tsv')
+        start_time = time.time()
         chunks = []
         filtered_out = []
         contaminants = []
@@ -47,7 +49,7 @@ class Preprocessor:
             chunk, chunk_filtered_out = self.filter_spikein_strict(chunk, "H") 
             
             chunk = self.apply_nan_by_loose_filtering(chunk,"L")
-            chunk = self.apply_nan_by_loose_filtering(chunk,"M")
+            chunk = self.apply_nan_by_loose_filtering(chunk,"M") 
             contam_chunk = self.identify_contaminants(chunk)
             
             #remove filter cols before concatinating all dfs and returning
@@ -58,15 +60,18 @@ class Preprocessor:
             
             if self.update:
                 print(f'Chunk {count} processed')
-            # if count == 1:
-            #     break
+            if count == 1:
+                break
         
         # append chunks to respective dfs and return  
         df = pd.concat(chunks, ignore_index=True)
         filtered_out_df = pd.concat(filtered_out, ignore_index=True)
         print('Finished import')
+        end_time = time.time()
+        print(f"Time taken for import: {end_time - start_time} seconds")
         return df, filtered_out_df, contaminants
-    
+
+
     def subset_based_on_metadata(self, chunk):
         filtered_chunk = chunk[chunk['Run'].isin(self.meta_data['Run'])]
         return filtered_chunk
