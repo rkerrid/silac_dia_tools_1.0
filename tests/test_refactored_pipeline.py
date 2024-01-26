@@ -430,36 +430,109 @@ def barplot_after_all_filtering_benchmark(df, title):
     
     plt.show()
         
+def merge_dlfq_intensities(df, dlfq):
+    df_copy = df.copy(deep=True)
+    
+    
+    # Merge the original DataFrame with the h_ref DataFrame
+    merged_df = df.merge(dlfq, on=['Protein.Group','Run'], how='inner')
+    merged_df['L_norm'] = merged_df['Precursor.Translated L/T' ] *merged_df['Intensity']
+    merged_df['M_norm'] = merged_df['Precursor.Translated M/T'] *  merged_df['Intensity']
+ 
+    
+    return merged_df
 
+def output_protein_groups_dlfq(df, quantification, path):
+    if quantification == 'dlfq':
+        cols = ['Run', 'Protein.Group', 'M_norm', 'L_norm']
+        df = df[cols]
+        df = df.rename(columns={ 'M_norm': 'M', 'L_norm': 'L'})
+        
+        # Pivoting for 'M'
+        m_pivot_df = df.pivot(index='Protein.Group', columns='Run', values='M')
+        
+        # Pivoting for 'L'
+        l_pivot_df = df.pivot(index='Protein.Group', columns='Run', values='L')
+        
+        # then output each table to csv for h.href, l.href, m.href
+        m_pivot_df.to_csv(f'{path}nsp_dlfq.csv', sep=',')
+        l_pivot_df.to_csv(f'{path}light_dlfq.csv', sep=',')
+
+    return  m_pivot_df, l_pivot_df
 
 if __name__ == "__main__":
 
  
    
-    path = 'G:/My Drive/Data/data/240112 poc4 test/new pipeline new stats/H refactored/'
-    path = 'G:/My Drive/Data/data/20240125 bm filter h then loose filter l/'
-    path = 'G:/My Drive/Data/data/eIF4F optimization/'
-    # path = 'G:/My Drive/Data\data/240112 poc4 test/new pipeline and stats/'
-    pipeline = pileline( f'{path}', 'test_params.json', contains_reference = True, pulse_channel="M", meta='meta.csv')
+    # path = 'G:/My Drive/Data/data/240112 poc4 test/new pipeline new stats/H refactored/'
+    # path = 'G:/My Drive/Data/data/20240125 bm filter h then loose filter l/'
+    # path = 'G:/My Drive/Data/data/eIF4F optimization/'
+    # # path = 'G:/My Drive/Data\data/240112 poc4 test/new pipeline and stats/'
+    # pipeline = pileline( f'{path}', 'test_params.json', contains_reference = True, pulse_channel="M", meta='meta.csv')
+    # df, filtered_out, contaminants = pipeline.preprocessor.import_report() 
+    # # counts_barplot(df, 'L & M loose filtering')
+    
+    # # precursor and protein groups
+    # # generate precursor report.tsv with precursor.quantity replaced by summing up precursor tranlsated vals
+    # df = generate_protein_groups.format_silac_channels(df)
+    # # split data (at this point will only work with pre_df and work on median of bot ms1 and pre later)
+    # pre_df, ms1_df = generate_protein_groups.split_data_by_intensity_type(df)
+    # # calculate precursor ratios and format for input into dlfq
+    # pre_df = generate_protein_groups.calculate_precursor_ratios(pre_df, 'Precursor.Translated')
+    
+    # # calculate protein groups without normalizing by either method
+    # protein_groups_unnormalized = generate_protein_groups.compute_protein_level(pre_df)
+    
+    # # Calculate intensities
+    # href_df = calculate_intensities_r.calculate_href_intensities(protein_groups_unnormalized)
+    
+    # # output href and unnormalized protein groups.csv
+    # dfs = calculate_intensities_r.output_protein_groups(href_df, 'href', path)
+    
+    
+    path = 'G:/My Drive/Data/data/poc4/N/'
+    ### Try with DLFQ
+    pipeline = pileline( f'{path}', 'test_params.json', contains_reference = False, pulse_channel="M", meta='meta.csv')
     df, filtered_out, contaminants = pipeline.preprocessor.import_report() 
-    # counts_barplot(df, 'L & M loose filtering')
     
     # precursor and protein groups
     # generate precursor report.tsv with precursor.quantity replaced by summing up precursor tranlsated vals
-    df = generate_protein_groups.format_silac_channels(df)
+    df = generate_protein_groups.format_silac_channels_dlfq(df)
     # split data (at this point will only work with pre_df and work on median of bot ms1 and pre later)
-    pre_df, ms1_df = generate_protein_groups.split_data_by_intensity_type(df)
+    pre_df, ms1_df = generate_protein_groups.split_data_by_intensity_type_dlfq(df)
     # calculate precursor ratios and format for input into dlfq
-    pre_df = generate_protein_groups.calculate_precursor_ratios(pre_df, 'Precursor.Translated')
+    pre_df = generate_protein_groups.calculate_precursor_ratios_dlfq(pre_df, 'Precursor.Translated')
+    
+    print('writing report tsv')
+    pre_df.to_csv(f'{path}report_.tsv', sep='\t')
     # calculate protein groups without normalizing by either method
-    protein_groups_unnormalized = generate_protein_groups.compute_protein_level(pre_df)
+    silac_precursors_file = f'{path}report_.tsv'
+    dlfq_output_file = f'{path}dlfq_protein_intensities.tsv'
+    from silac_dia_tools.pipeline.utils import dlfq_functions as dlfq
+
+    # # silac_precursors.to_csv(silac_precursors_file, sep='\t')
+    dlfq.run_lfq(silac_precursors_file, file=dlfq_output_file, num_cores=1)
     
-    # Calculate intensities
-    href_df = calculate_intensities_r.calculate_href_intensities(protein_groups_unnormalized)
+    protein_groups_unnormalized = generate_protein_groups.compute_protein_level_dlfq(pre_df)
+    dlfq_df = pd.read_csv(dlfq_output_file, sep='\t')
     
-    # output href and unnormalized protein groups.csv
-    dfs = calculate_intensities_r.output_protein_groups(href_df, 'href', path)
+    # Drop the 'Unnamed: 0' column
+    dlfq_df = dlfq_df.drop(columns=['Unnamed: 0', 'protein'])
     
+    # Melt the DataFrame
+    long_df = pd.melt(dlfq_df, id_vars=['Protein.Group'], var_name='Run', value_name='Intensity')
+    merged_dlfq = merge_dlfq_intensities(protein_groups_unnormalized, long_df)
+    m,l = output_protein_groups_dlfq(merged_dlfq, 'dlfq', path)
+    # Display the first few rows of the transformed DataFrame
+    
+    # id_vars = ['Protein.Group']  # Add other identifier columns if they exist
+    # value_vars = [col for col in dlfq_df.columns if col not in id_vars]  # All other columns are treated as value_vars
+    
+    # long_dlfq = pd.melt(dlfq_df, id_vars=id_vars, value_vars=value_vars, var_name='Run', value_name='Intensity')    # Calculate intensities
+    # dlfq_df = calculate_intensities_r.calculate_href_intensities(protein_groups_unnormalized)
+    
+    # # output href and unnormalized protein groups.csv
+    # dfs = calculate_intensities_r.output_protein_groups(href_df, 'dlfq', path)
     
     
     
