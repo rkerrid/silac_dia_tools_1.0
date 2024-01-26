@@ -463,7 +463,7 @@ def output_protein_groups_dlfq(df, quantification, path):
 if __name__ == "__main__":
 
  
-   
+   ###### Href pipeline poc
     # path = 'G:/My Drive/Data/data/240112 poc4 test/new pipeline new stats/H refactored/'
     # path = 'G:/My Drive/Data/data/20240125 bm filter h then loose filter l/'
     # path = 'G:/My Drive/Data/data/eIF4F optimization/'
@@ -490,6 +490,9 @@ if __name__ == "__main__":
     # dfs = calculate_intensities_r.output_protein_groups(href_df, 'href', path)
     
     
+    
+    
+    ###### DLFQ pipeline POC
     path = 'G:/My Drive/Data/data/poc4/N/'
     ### Try with DLFQ
     pipeline = pileline( f'{path}', 'test_params.json', contains_reference = False, pulse_channel="M", meta='meta.csv')
@@ -523,18 +526,11 @@ if __name__ == "__main__":
     long_df = pd.melt(dlfq_df, id_vars=['Protein.Group'], var_name='Run', value_name='Intensity')
     merged_dlfq = merge_dlfq_intensities(protein_groups_unnormalized, long_df)
     m,l = output_protein_groups_dlfq(merged_dlfq, 'dlfq', path)
-    # Display the first few rows of the transformed DataFrame
-    
-    # id_vars = ['Protein.Group']  # Add other identifier columns if they exist
-    # value_vars = [col for col in dlfq_df.columns if col not in id_vars]  # All other columns are treated as value_vars
-    
-    # long_dlfq = pd.melt(dlfq_df, id_vars=id_vars, value_vars=value_vars, var_name='Run', value_name='Intensity')    # Calculate intensities
-    # dlfq_df = calculate_intensities_r.calculate_href_intensities(protein_groups_unnormalized)
-    
-    # # output href and unnormalized protein groups.csv
-    # dfs = calculate_intensities_r.output_protein_groups(href_df, 'dlfq', path)
-    
-    
+
+
+
+
+
     
     # barplot_after_all_filtering(df, 'eIF4F Pilot (loose post filtering)')
     
