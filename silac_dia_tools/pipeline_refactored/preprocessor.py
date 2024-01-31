@@ -13,7 +13,7 @@ import time
 from icecream import ic
 
 class Preprocessor:
-    def __init__(self, path, params, filter_cols, meta_data=None):
+    def __init__(self, path, params, filter_cols, contains_reference, pulse_channel, meta_data=None):
         self.path = path
         self.meta_data = meta_data
         # self.contains_metadata = meta_data is not None
@@ -21,6 +21,8 @@ class Preprocessor:
         self.chunk_size = 180000
         self.update = True
         self.filter_cols = filter_cols 
+        self.contains_reference = contains_reference
+        self.pulse_channel = pulse_channel
         
     def import_report(self):
         print('Beginning import report.tsv')
@@ -42,14 +44,20 @@ class Preprocessor:
             chunk['Protein.Group'] = chunk['Protein.Group'].str.cat(chunk['Genes'], sep='-')
             chunk['Label'] = ""
             chunk = self.add_label_col(chunk)
-            chunk = self.drop_non_valid_h_rows(chunk)
+            # chunk = self.drop_non_valid_h_rows(chunk) probably dont need this func because filtering will remove these rows
             chunk = self.remove_cols(chunk)
             
             # annotate df with SILAC chanel then apply strict filters to H by droping the precursor, or adding NaN for L and M channels if they dont pass loose filters
-            chunk, chunk_filtered_out = self.filter_spikein_strict(chunk, "H") 
+            if self.contains_reference:
+                chunk, chunk_filtered_out = self.filter_channel_strict(chunk, "H") 
+                chunk = self.apply_nan_by_loose_filtering(chunk,"L")
+                chunk = self.apply_nan_by_loose_filtering(chunk,"M")
+            else:
+                chunk, chunk_filtered_out = self.filter_channel_strict(chunk, "L")
+                chunk = self.apply_nan_by_loose_filtering(chunk, self.pulse_channel)
+
+
             
-            chunk = self.apply_nan_by_loose_filtering(chunk,"L")
-            chunk = self.apply_nan_by_loose_filtering(chunk,"M") 
             contam_chunk = self.identify_contaminants(chunk)
             
             #remove filter cols before concatinating all dfs and returning
@@ -100,19 +108,19 @@ class Preprocessor:
         chunk = chunk[cols]
         return chunk
     
-    def drop_non_valid_h_rows(self, chunk):
-        h_rows = chunk[chunk['Label'] == 'H']
+    # def drop_non_valid_h_rows(self, chunk):
+    #     h_rows = chunk[chunk['Label'] == 'H']
 
-        # Check for invalid values in intensity cols (precursor and MS1 translated). If no vlaid values then drop row
-        invalid_rows = h_rows[(h_rows['Precursor.Translated'].isin([0, np.inf, np.nan])) &
-                              (h_rows['Ms1.Translated'].isin([0, np.inf, np.nan]))]
+    #     # Check for invalid values in intensity cols (precursor and MS1 translated). If no vlaid values then drop row
+    #     invalid_rows = h_rows[(h_rows['Precursor.Translated'].isin([0, np.inf, np.nan])) &
+    #                           (h_rows['Ms1.Translated'].isin([0, np.inf, np.nan]))]
         
-        # Drop the identified rows
-        chunk = chunk.drop(invalid_rows.index)
-        return chunk 
+    #     # Drop the identified rows
+    #     chunk = chunk.drop(invalid_rows.index)
+    #     return chunk 
 
 
-    def filter_spikein_strict(self, chunk, label):
+    def filter_channel_strict(self, chunk, label):
         ops = {
             "==": operator.eq, "<": operator.lt, "<=": operator.le,
             ">": operator.gt, ">=": operator.ge

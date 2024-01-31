@@ -68,7 +68,7 @@ class Pipeline:
         return pd.read_csv(os.path.join(self.path, self.meta), sep=',')
 
     def _initialize_pipeline_objects(self):
-        self.preprocessor = Preprocessor(self.path, self.params, self.filter_cols, self.meta_data)
+        self.preprocessor = Preprocessor(self.path, self.params, self.filter_cols, self.contains_reference, self.pulse_channel, self.meta_data)
         self.formatter = SilacFormatter(self.path, self.filter_cols)
         self.precursor_rollup = PrecursorRollup(self.path)
         self.intensity_calculator = IntensityCalculator(self.path, self.contains_reference, self.pulse_channel)
