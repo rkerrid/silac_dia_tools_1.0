@@ -464,30 +464,40 @@ if __name__ == "__main__":
 
  
    ##### Href pipeline poc
-    path = 'G:/My Drive/Data/data/240112 poc4 test/new pipeline new stats/H refactored/'
-    # path = 'G:/My Drive/Data/data/20240125 bm filter h then loose filter l/'
-    # path = 'G:/My Drive/Data/data/eIF4F optimization/'
-    # path = 'G:/My Drive/Data\data/240112 poc4 test/new pipeline and stats/'
+    path = 'G:/My Drive/Data/data/240112 poc4 test/href testing refactored/'
+   
     pipeline = pileline( f'{path}', 'test_params.json', contains_reference = True, pulse_channel="M", meta='meta.csv')
-    df, filtered_out, contaminants = pipeline.preprocessor.import_report() 
-    # counts_barplot(df, 'L & M loose filtering')
+    pipeline.execute_pipeline()
     
-    # precursor and protein groups
-    # generate precursor report.tsv with precursor.quantity replaced by summing up precursor tranlsated vals
-    df = generate_protein_groups.format_silac_channels(df)
-    # split data (at this point will only work with pre_df and work on median of bot ms1 and pre later)
-    pre_df, ms1_df = generate_protein_groups.split_data_by_intensity_type(df)
-    # calculate precursor ratios and format for input into dlfq
-    pre_df = generate_protein_groups.calculate_precursor_ratios(pre_df, 'Precursor.Translated')
     
-    # calculate protein groups without normalizing by either method
-    protein_groups_unnormalized = generate_protein_groups.compute_protein_level(pre_df)
     
-    # Calculate intensities
-    href_df = calculate_intensities_r.calculate_href_intensities(protein_groups_unnormalized)
     
-    # output href and unnormalized protein groups.csv
-    dfs = calculate_intensities_r.output_protein_groups(href_df, 'href', path)
+    
+    
+    
+    
+    
+    
+    
+    # df, filtered_out, contaminants = pipeline.preprocessor.import_report() 
+    # # counts_barplot(df, 'L & M loose filtering')
+    
+    # # precursor and protein groups
+    # # generate precursor report.tsv with precursor.quantity replaced by summing up precursor tranlsated vals
+    # df = generate_protein_groups.format_silac_channels(df)
+    # # split data (at this point will only work with pre_df and work on median of bot ms1 and pre later)
+    # pre_df, ms1_df = generate_protein_groups.split_data_by_intensity_type(df)
+    # # calculate precursor ratios and format for input into dlfq
+    # pre_df = generate_protein_groups.calculate_precursor_ratios(pre_df, 'Precursor.Translated')
+    
+    # # calculate protein groups without normalizing by either method
+    # protein_groups_unnormalized = generate_protein_groups.compute_protein_level(pre_df)
+    
+    # # Calculate intensities
+    # href_df = calculate_intensities_r.calculate_href_intensities(protein_groups_unnormalized)
+    
+    # # output href and unnormalized protein groups.csv
+    # dfs = calculate_intensities_r.output_protein_groups(href_df, 'href', path)
     
     
     

@@ -77,7 +77,7 @@ from silac_dia_tools.pipeline.utils import manage_directories
 
 def create_report(df, path, params):
     # Construct the description string
-    params_str = "\n".join([f"{key} {item['op']} {item['value']}" for key, item in params['apply_filters'].items()])
+    params_str = "\n".join([f"{key} {item['op']} {item['value']}" for key, item in params['apply_strict_filters'].items()])
     description = f"Parameters used:\n{params_str}"
 
     
@@ -130,11 +130,11 @@ def create_report(df, path, params):
         # Process the data for each 'Run'
         for run in df['Run'].unique():
             run_df = df[df['Run'] == run]
-            counts = run_df.groupby('Run')[['H intensity', 'L intensity', 'M intensity']].apply(lambda x: (x > 0).sum()).reset_index()
+            counts = run_df.groupby('Run')[['H', 'L', 'M']].apply(lambda x: (x > 0).sum()).reset_index()
             
             # Plotting
             plt.figure(figsize=(10, 7))
-            melted_counts = counts.melt(id_vars=['Run'], value_vars=['H intensity', 'L intensity', 'M intensity'], var_name='Type', value_name='Counts')
+            melted_counts = counts.melt(id_vars=['Run'], value_vars=['H', 'L', 'M'], var_name='Type', value_name='Counts')
             sns.barplot(x='Run', y='Counts', hue='Type', data=melted_counts)
             plt.title(f'Non-Zero Counts for Run {run}')
             plt.xlabel('Sample')
@@ -144,4 +144,3 @@ def create_report(df, path, params):
             pdf.savefig()
             plt.close()
 
-        # ... rest of your code ...

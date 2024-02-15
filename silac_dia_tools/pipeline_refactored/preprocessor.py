@@ -16,7 +16,6 @@ class Preprocessor:
     def __init__(self, path, params, filter_cols, contains_reference, pulse_channel, meta_data=None):
         self.path = path
         self.meta_data = meta_data
-        # self.contains_metadata = meta_data is not None
         self.params = params
         self.chunk_size = 180000
         self.update = True
@@ -53,10 +52,9 @@ class Preprocessor:
                 chunk = self.apply_nan_by_loose_filtering(chunk,"L")
                 chunk = self.apply_nan_by_loose_filtering(chunk,"M")
             else:
+            # If the data contains no H refference, apply strict filtering to the L channel and loose filterings to the H or M channel that was used for the pulse
                 chunk, chunk_filtered_out = self.filter_channel_strict(chunk, "L")
                 chunk = self.apply_nan_by_loose_filtering(chunk, self.pulse_channel)
-
-
             
             contam_chunk = self.identify_contaminants(chunk)
             
@@ -68,16 +66,17 @@ class Preprocessor:
             
             if self.update:
                 print(f'Chunk {count} processed')
-            if count == 1:
-                break
+            # if count == 1:
+            #     break
         
         # append chunks to respective dfs and return  
         df = pd.concat(chunks, ignore_index=True)
         filtered_out_df = pd.concat(filtered_out, ignore_index=True)
+        contaminants_df = pd.concat(contaminants, ignore_index=True)
         print('Finished import')
         end_time = time.time()
         print(f"Time taken for import: {end_time - start_time} seconds")
-        return df, filtered_out_df, contaminants
+        return df, filtered_out_df, contaminants_df
 
 
     def subset_based_on_metadata(self, chunk):
@@ -107,18 +106,6 @@ class Preprocessor:
         cols = ['Run', 'Protein.Group', 'Precursor.Id', 'Label',  'Precursor.Quantity','Ms1.Translated','Precursor.Translated'] + self.filter_cols 
         chunk = chunk[cols]
         return chunk
-    
-    # def drop_non_valid_h_rows(self, chunk):
-    #     h_rows = chunk[chunk['Label'] == 'H']
-
-    #     # Check for invalid values in intensity cols (precursor and MS1 translated). If no vlaid values then drop row
-    #     invalid_rows = h_rows[(h_rows['Precursor.Translated'].isin([0, np.inf, np.nan])) &
-    #                           (h_rows['Ms1.Translated'].isin([0, np.inf, np.nan]))]
-        
-    #     # Drop the identified rows
-    #     chunk = chunk.drop(invalid_rows.index)
-    #     return chunk 
-
 
     def filter_channel_strict(self, chunk, label):
         ops = {
@@ -128,25 +115,26 @@ class Preprocessor:
     
         # Check if 'H' labeled rows are present
         if label in chunk['Label'].values:
-            # Start with a mask that selects all 'H' rows
+            # Start with a mask that selects all chanel rows
             h_rows_mask = chunk['Label'] == label
     
             for column, condition in self.params['apply_strict_filters'].items():
                 op = ops[condition['op']]
-                # Update the mask to keep 'H' rows that meet the condition
+                # Update the mask to keep chanel rows that meet the condition
                 h_rows_mask &= op(chunk[column], condition['value'])
     
-            # Filter out 'H' rows that do not meet all conditions
+            # Filter out chanel rows that do not meet all conditions
             filtered_chunk = chunk[h_rows_mask | (chunk['Label'] != label)]
             chunk_filtered_out = chunk[~h_rows_mask & (chunk['Label'] == label)]
         else:
-            # If the label is not present, return the whole chunk and an empty DataFrame
+            # If the label is not present, return the whole chunk and an empty 'filtered' chunk
             filtered_chunk = chunk
             chunk_filtered_out = pd.DataFrame(columns=chunk.columns)
     
         return filtered_chunk, chunk_filtered_out
 
     def apply_nan_by_loose_filtering(self, chunk, label):
+        # Create boolean mask for length of chunk
         filtering_condition = pd.Series([True] * len(chunk), index=chunk.index)
         ops = {
             "==": operator.eq, "<": operator.lt, "<=": operator.le,
@@ -157,7 +145,7 @@ class Preprocessor:
         if label in chunk['Label'].values:
             for column, condition in self.params['apply_loose_filters'].items():
                 op = ops[condition['op']]
-                # Update the condition for each column
+                # Update the condition for each column if any of the filtering criterea don't pass
                 filtering_condition &= op(chunk[column], condition['value'])
     
             nan_cols = ['Precursor.Translated', 'Precursor.Quantity', 'Ms1.Translated']

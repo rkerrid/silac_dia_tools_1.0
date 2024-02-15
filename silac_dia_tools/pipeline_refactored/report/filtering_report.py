@@ -21,8 +21,10 @@ def create_report(df, contams, filtered_out, path, params):
     counts_filtered_out = filtered_out['Run'].value_counts()
 
     # Construct the description string
-    params_str = "\n".join([f"{key} {item['op']} {item['value']}" for key, item in params['apply_filters'].items()])
-    description = f"Parameters used:\n{params_str}"
+    strict_params_str = "\n".join([f"{key} {item['op']} {item['value']}" for key, item in params['apply_strict_filters'].items()])
+    loose_params_str = "\n".join([f"{key} {item['op']} {item['value']}" for key, item in params['apply_loose_filters'].items()])
+
+    description = f"Strict parameters used:\n{strict_params_str} \n\n Loose parameters used:\n{loose_params_str}"
     
     #Group by run for analysis of each
     df_grouped = df.groupby('Run')
@@ -39,7 +41,7 @@ def create_report(df, contams, filtered_out, path, params):
         plt.figure(figsize=(8, 11))
         plt.axis('off')
         plt.text(0.5, 0.98, "Filtering QC Report", ha='center', va='top', fontsize=15, fontweight='bold')
-        plt.text(0.5, 0.85, description, ha='center', va='center', wrap=True)
+        plt.text(0.5, 0.75, description, ha='center', va='center', wrap=True)
         
         pdf.savefig()  # Saves the current figure into the PDF
         plt.close()

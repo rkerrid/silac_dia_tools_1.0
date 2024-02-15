@@ -17,9 +17,11 @@ from .utils import manage_directories
 from .report import filtering_report, precursor_report, protein_group_report, protein_intensities_report
 
 from silac_dia_tools.pipeline_refactored.preprocessor import Preprocessor 
-from silac_dia_tools.pipeline_refactored.silac_formatter import SilacFormatter 
-from silac_dia_tools.pipeline_refactored.calculate_intensities import IntensityCalculator
-from silac_dia_tools.pipeline_refactored.precursor_rollup import PrecursorRollup
+from silac_dia_tools.pipeline_refactored.generate_protein_groups import HrefRollUp, LfqRollUp 
+# to do below
+# from silac_dia_tools.pipeline_refactored.silac_formatter import SilacFormatter 
+# from silac_dia_tools.pipeline_refactored.calculate_intensities import IntensityCalculator
+# from silac_dia_tools.pipeline_refactored.precursor_rollup import PrecursorRollup
 
 # Import custom modules
 # from silac_dia_tools.pipeline_refactored import (
@@ -30,17 +32,28 @@ from silac_dia_tools.pipeline_refactored.precursor_rollup import PrecursorRollup
 
 class Pipeline:
     def __init__(self, path, parameter_file, contains_reference=True, pulse_channel="M", meta=None):
+        # Assign constructor variables
         self.path = path
         self.parameter_file = parameter_file
         self.pulse_channel = pulse_channel
         self.meta = meta
         self.contains_reference = contains_reference
+        
+        # Initialize class variables
         self.relable_with_meta = self._confirm_metadata()
         self.meta_data = self._load_meta_data() if self.relable_with_meta else None
         self.params = self._load_params()
         self.filter_cols = list(self.params['filter_cols'].keys())
-        self._initialize_pipeline_objects()
-
+       
+        # Placeholder variables 
+        self.precursor_rollup = None
+        
+        self.filtered_report = None
+        self.contaminants = None
+        self.filtered_out_df = None
+        self.formatted_precursors = None
+        self.protein_groups = None
+        
     def _load_params(self):
         json_path = os.path.join(os.path.dirname(__file__), '..', 'configs', self.parameter_file)
         with open(json_path, 'r') as file:
@@ -65,63 +78,42 @@ class Pipeline:
         return False
 
     def _load_meta_data(self):
-        return pd.read_csv(os.path.join(self.path, self.meta), sep=',')
-
-    def _initialize_pipeline_objects(self):
-        self.preprocessor = Preprocessor(self.path, self.params, self.filter_cols, self.contains_reference, self.pulse_channel, self.meta_data)
-        self.formatter = SilacFormatter(self.path, self.filter_cols)
-        self.precursor_rollup = PrecursorRollup(self.path)
-        self.intensity_calculator = IntensityCalculator(self.path, self.contains_reference, self.pulse_channel)
-
-    def preprocess_pipeline(self, method='href'):
-        self.report = self.preprocessor.import_report()
-        print('finished reading in file')
-        self.formatted_precursors = self.formatter.format_silac_channels(self.report)
-        self.filtered_report, self.contaminants, self.filtered_out = self.preprocessor.filter_formatted(self.formatted_precursors)
-
-        self._update_filtered_precursors()
-        self._roll_up_to_protein_level()
-        self.save_preprocessing()
-        self._output_unnormalized()
-
-        if method == 'href':
-            self._output_href()
-        elif method == 'dlfq':
-            self._output_dlfq()
-
-    def _update_filtered_precursors(self):
-        filter_type = 'Ms1.Translated'
-        self.filtered_precursors = self.filtered_report[self.filtered_report['quantitytype'] == filter_type]
-        self.contaminants = self.contaminants[self.contaminants['quantity type'] == filter_type]
-        self.filtered_out = self.filtered_out[self.filtered_out['quantity type'] == filter_type]
-
-    def _roll_up_to_protein_level(self):
-        self.protein_groups = self.precursor_rollup.calculate_protein_level_ratios(self.filtered_precursors)
+        return pd.read_csv(os.path.join(self.path, self.meta), sep=',')       
     
-    def _output_unnormalized(self):
-        self.unnormalized_total_intensities, self.unnormalized_nsp_intensities, self.light_unormalized_intensities = \
-            self.intensity_calculator.output_unnorm(self.protein_groups)
-    
-    def _output_href(self):
-        self.href_total_intensities, self.href_nsp_intensities, self.href_nsp_light = \
-            self.intensity_calculator.output_href(self.protein_groups)
-    
-    def _output_dlfq(self):
-        self.dlfq_total_intensities, self.dlfq_nsp_intensities, self.dlfq_total_light = \
-            self.intensity_calculator.output_dlfq(self.protein_groups, self.filtered_precursors)
-    
-    def save_preprocessing(self):
+    def _save_preprocessing(self):
         manage_directories.create_directory(self.path, 'preprocessing')
-        self.filtered_precursors.to_csv(os.path.join(self.path, 'preprocessing', 'silac_precursors.tsv'), sep='\t')
-        self.filtered_report.to_csv(os.path.join(self.path, 'preprocessing', 'protein_ratios.csv'), sep='\t')
+        self.filtered_report.to_csv(os.path.join(self.path, 'preprocessing', 'filtered_report.tsv'), sep='\t')
+        self.formatted_precursors.to_csv(os.path.join(self.path, 'preprocessing', 'silac_precursors.tsv'), sep='\t')
+        self.protein_groups.to_csv(os.path.join(self.path, 'preprocessing', 'protein_groups.csv'), sep=',')
     
-    def generate_reports(self):
-        if not self.contains_reference:
-            filtering_report.protein_intensities_report.create_report(self.path, self.params)
-        filtering_report.create_report(self.filtered_report, self.contaminants, self.filtered_out, self.path, self.params)
+    def _generate_reports(self):
+        # # For the report since we are just using precursor translated these dfs need to be subsetted first
+        # filter_type = 'Precursor.Translated'
+        # self.filtered_precursors = self.filtered_report[self.filtered_report['quantity type'] == filter_type]
+        # self.contaminants = self.contaminants[self.contaminants['quantity type'] == filter_type]
+        # self.filtered_out = self.filtered_out[self.filtered_out['quantity type'] == filter_type]
+        
+        # Then call the reporting modules for each preprocessing step
+        filtering_report.create_report(self.filtered_report, self.contaminants, self.filtered_out_df, self.path, self.params)
         precursor_report.create_report(self.formatted_precursors, self.path, self.params)
         protein_group_report.create_report(self.protein_groups, self.path, self.params)
 
+    def execute_pipeline(self, generate_report=True):
+        self.preprocessor = Preprocessor(self.path, self.params, self.filter_cols, self.contains_reference, self.pulse_channel, self.meta_data)
+        self.filtered_report, self.filtered_out_df, self.contaminants = self.preprocessor.import_report()
+        
+        if self.contains_reference:
+            self.precursor_rollup = HrefRollUp(self.path, self.filtered_report)
+        else:
+            self.precursor_rollup = LfqRollUp(self.path, self.filtered_report, self.pulse_channel)
+            
+        self.formatted_precursors, self.protein_groups = self.precursor_rollup.generate_protein_groups()
+        
+        if generate_report:
+            self._save_preprocessing()
+            self._generate_reports() 
+          
+          
 class TestApp(tk.Frame):
     def init(self, path, parent=None):
         super().init(parent)
