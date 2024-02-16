@@ -7,7 +7,7 @@ Created on Thu Jan 25 10:49:28 2024
 import pandas as pd
 import numpy as np
 import time
-
+from icecream import ic
 from .utils import manage_directories
 
 class HrefRollUp:
@@ -43,7 +43,6 @@ class HrefRollUp:
         
         # Merge the pivoted DataFrames
         merged_df = pd.concat([pivot_L, pivot_M, pivot_H], axis=1)
-        
         # Reset index to make 'Run', 'Protein.Group', and 'Precursor.Id' as columns
         merged_df.reset_index(inplace=True)
     
@@ -137,7 +136,7 @@ class HrefRollUp:
         # then output each table to csv for h.href, l.href, m.href
         h_pivot_df.to_csv(f'{path}/protein_groups/href_href.csv', sep=',')
         m_pivot_df.to_csv(f'{path}/protein_groups/nsp_href.csv', sep=',')
-        h_pivot_df.to_csv(f'{path}/protein_groups/light_href.csv', sep=',')
+        l_pivot_df.to_csv(f'{path}/protein_groups/light_href.csv', sep=',')
 
         return h_pivot_df, m_pivot_df, l_pivot_df
 

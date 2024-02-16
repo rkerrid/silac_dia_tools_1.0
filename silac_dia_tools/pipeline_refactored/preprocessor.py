@@ -10,6 +10,8 @@ import numpy as np
 import operator
 import time 
 
+from tqdm import tqdm
+import os
 from icecream import ic
 
 class Preprocessor:
@@ -26,49 +28,58 @@ class Preprocessor:
     def import_report(self):
         print('Beginning import report.tsv')
         start_time = time.time()
+        # use dask to read in file quickly to count rows for tqdm loading bar
+        
         chunks = []
         filtered_out = []
         contaminants = []
         file_path = f"{self.path}report.tsv"
+        count = 1
+        # Estimate rows in file size
+        file_size_bytes = os.path.getsize(file_path)
+        average_row_size_bytes = 1000  # This is an example; you'll need to adjust this based on your data
+        # Estimate the number of rows
+        estimated_rows = file_size_bytes / average_row_size_bytes
+        total_chunks = estimated_rows/self.chunk_size
         
-        for count, chunk in enumerate(pd.read_table(file_path, sep="\t", chunksize=self.chunk_size), start=1):
+        for chunk in tqdm(pd.read_table(file_path, sep="\t", chunksize=self.chunk_size), 
+                      total=total_chunks, desc='Estimated loading of report.tsv based on file size'):
+                # reduce data size by subsetting report.tsv based on metadata, and removing columns not needed for further analysis
+                # in the following loop we also annotate the silac chanels and append genes to Protein.Groups for downstream useage
+                pd.options.mode.chained_assignment = None  # Turn off SettingWithCopyWarning since adaptions are being made to original df during import
+                if self.meta_data is not None:
+                    chunk = self.subset_based_on_metadata(chunk)
+                    chunk = self.relabel_run(chunk)
+                chunk['Genes'] = chunk['Genes'].fillna('')
+                chunk['Protein.Group'] = chunk['Protein.Group'].str.cat(chunk['Genes'], sep='-')
+                chunk['Label'] = ""
+                chunk = self.add_label_col(chunk)
+                # chunk = self.drop_non_valid_h_rows(chunk) probably dont need this func because filtering will remove these rows
+                chunk = self.remove_cols(chunk)
+                
+                # annotate df with SILAC chanel then apply strict filters to H by droping the precursor, or adding NaN for L and M channels if they dont pass loose filters
+                if self.contains_reference:
+                    chunk, chunk_filtered_out = self.filter_channel_strict(chunk, "H") 
+                    chunk = self.apply_nan_by_loose_filtering(chunk,"L")
+                    chunk = self.apply_nan_by_loose_filtering(chunk,"M")
+                else:
+                # If the data contains no H refference, apply strict filtering to the L channel and loose filterings to the H or M channel that was used for the pulse
+                    chunk, chunk_filtered_out = self.filter_channel_strict(chunk, "L")
+                    chunk = self.apply_nan_by_loose_filtering(chunk, self.pulse_channel)
+                
+                contam_chunk = self.identify_contaminants(chunk)
+                
+                #remove filter cols before concatinating all dfs and returning
+                chunk.drop(self.filter_cols, axis=1, inplace=True)
+                chunks.append(chunk)
+                filtered_out.append(chunk_filtered_out)
+                contaminants.append(contam_chunk)
+                
+                # if self.update:
+                #     print(f'Chunk {count} processed')
+                # if count == 1:
+                #     break
             
-            # reduce data size by subsetting report.tsv based on metadata, and removing columns not needed for further analysis
-            # in the following loop we also annotate the silac chanels and append genes to Protein.Groups for downstream useage
-            pd.options.mode.chained_assignment = None  # Turn off SettingWithCopyWarning since adaptions are being made to original df during import
-            if self.meta_data is not None:
-                chunk = self.subset_based_on_metadata(chunk)
-                chunk = self.relabel_run(chunk)
-            chunk['Genes'] = chunk['Genes'].fillna('')
-            chunk['Protein.Group'] = chunk['Protein.Group'].str.cat(chunk['Genes'], sep='-')
-            chunk['Label'] = ""
-            chunk = self.add_label_col(chunk)
-            # chunk = self.drop_non_valid_h_rows(chunk) probably dont need this func because filtering will remove these rows
-            chunk = self.remove_cols(chunk)
-            
-            # annotate df with SILAC chanel then apply strict filters to H by droping the precursor, or adding NaN for L and M channels if they dont pass loose filters
-            if self.contains_reference:
-                chunk, chunk_filtered_out = self.filter_channel_strict(chunk, "H") 
-                chunk = self.apply_nan_by_loose_filtering(chunk,"L")
-                chunk = self.apply_nan_by_loose_filtering(chunk,"M")
-            else:
-            # If the data contains no H refference, apply strict filtering to the L channel and loose filterings to the H or M channel that was used for the pulse
-                chunk, chunk_filtered_out = self.filter_channel_strict(chunk, "L")
-                chunk = self.apply_nan_by_loose_filtering(chunk, self.pulse_channel)
-            
-            contam_chunk = self.identify_contaminants(chunk)
-            
-            #remove filter cols before concatinating all dfs and returning
-            chunk.drop(self.filter_cols, axis=1, inplace=True)
-            chunks.append(chunk)
-            filtered_out.append(chunk_filtered_out)
-            contaminants.append(contam_chunk)
-            
-            if self.update:
-                print(f'Chunk {count} processed')
-            # if count == 1:
-            #     break
-        
         # append chunks to respective dfs and return  
         df = pd.concat(chunks, ignore_index=True)
         filtered_out_df = pd.concat(filtered_out, ignore_index=True)

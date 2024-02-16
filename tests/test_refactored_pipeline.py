@@ -6,7 +6,7 @@ from silac_dia_tools.pipeline_refactored import calculate_intensities_r
 # from silac_dia_tools.pipeline_refactored import precursor_rollup  
 import pandas as pd 
 import matplotlib.pyplot as plt
-import tqdm
+from tqdm import tqdm
 import numpy as np
 import operator
 import json
@@ -432,8 +432,7 @@ def barplot_after_all_filtering_benchmark(df, title):
         
 def merge_dlfq_intensities(df, dlfq):
     df_copy = df.copy(deep=True)
-    
-    
+        
     # Merge the original DataFrame with the h_ref DataFrame
     merged_df = df.merge(dlfq, on=['Protein.Group','Run'], how='inner')
     merged_df['L_norm'] = merged_df['Precursor.Translated L/T' ] *merged_df['Intensity']
@@ -468,12 +467,7 @@ if __name__ == "__main__":
    
     pipeline = pileline( f'{path}', 'test_params.json', contains_reference = True, pulse_channel="M", meta='meta.csv')
     pipeline.execute_pipeline()
-    
-    
-    
-    
-    
-    
+ 
     
     
     

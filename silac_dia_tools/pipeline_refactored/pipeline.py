@@ -14,7 +14,7 @@ import json
 import dask.dataframe as dd
 
 from .utils import manage_directories
-from .report import filtering_report, precursor_report, protein_group_report, protein_intensities_report
+from .report import filtering_report, precursor_report, protein_group_report, protein_intensities_report, protein_groups_report_r
 
 from silac_dia_tools.pipeline_refactored.preprocessor import Preprocessor 
 from silac_dia_tools.pipeline_refactored.generate_protein_groups import HrefRollUp, LfqRollUp 
@@ -51,6 +51,7 @@ class Pipeline:
         self.filtered_report = None
         self.contaminants = None
         self.filtered_out_df = None
+        
         self.formatted_precursors = None
         self.protein_groups = None
         
@@ -82,22 +83,20 @@ class Pipeline:
     
     def _save_preprocessing(self):
         manage_directories.create_directory(self.path, 'preprocessing')
+        self.contaminants.to_csv(os.path.join(self.path, 'preprocessing', 'contaminants.tsv'), sep='\t')
+        self.filtered_out_df.to_csv(os.path.join(self.path, 'preprocessing', 'filtered_out.tsv'), sep='\t')
         self.filtered_report.to_csv(os.path.join(self.path, 'preprocessing', 'filtered_report.tsv'), sep='\t')
-        self.formatted_precursors.to_csv(os.path.join(self.path, 'preprocessing', 'silac_precursors.tsv'), sep='\t')
+        self.formatted_precursors.to_csv(os.path.join(self.path, 'preprocessing', 'formatted_precursors.tsv'), sep='\t')
         self.protein_groups.to_csv(os.path.join(self.path, 'preprocessing', 'protein_groups.csv'), sep=',')
     
     def _generate_reports(self):
-        # # For the report since we are just using precursor translated these dfs need to be subsetted first
-        # filter_type = 'Precursor.Translated'
-        # self.filtered_precursors = self.filtered_report[self.filtered_report['quantity type'] == filter_type]
-        # self.contaminants = self.contaminants[self.contaminants['quantity type'] == filter_type]
-        # self.filtered_out = self.filtered_out[self.filtered_out['quantity type'] == filter_type]
-        
-        # Then call the reporting modules for each preprocessing step
+        # Generate reports for filtering, precursors, and protein groups
         filtering_report.create_report(self.filtered_report, self.contaminants, self.filtered_out_df, self.path, self.params)
         precursor_report.create_report(self.formatted_precursors, self.path, self.params)
-        protein_group_report.create_report(self.protein_groups, self.path, self.params)
-
+        # protein_group_report.create_report(self.protein_groups, self.path, self.params)
+        
+        protein_groups_report_r.create_report(self.path, self.params)
+        
     def execute_pipeline(self, generate_report=True):
         self.preprocessor = Preprocessor(self.path, self.params, self.filter_cols, self.contains_reference, self.pulse_channel, self.meta_data)
         self.filtered_report, self.filtered_out_df, self.contaminants = self.preprocessor.import_report()
@@ -109,6 +108,7 @@ class Pipeline:
             
         self.formatted_precursors, self.protein_groups = self.precursor_rollup.generate_protein_groups()
         
+        # return self.protein_groups
         if generate_report:
             self._save_preprocessing()
             self._generate_reports() 
