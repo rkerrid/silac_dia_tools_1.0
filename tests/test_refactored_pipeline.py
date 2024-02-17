@@ -463,9 +463,9 @@ if __name__ == "__main__":
 
  
    ##### Href pipeline poc
-    path = 'G:/My Drive/Data/data/240112 poc4 test/href testing refactored/'
+    path = 'G:/My Drive/Data/data/poc4.2/Nold/'
    
-    pipeline = pileline( f'{path}', 'test_params.json', contains_reference = True, pulse_channel="M", meta='meta.csv')
+    pipeline = pileline( f'{path}', 'test_params.json', contains_reference = False, pulse_channel="M", meta='meta.csv')
     pipeline.execute_pipeline()
  
     
