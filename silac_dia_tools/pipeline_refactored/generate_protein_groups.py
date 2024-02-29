@@ -40,7 +40,6 @@ class HrefRollUp:
         pivot_L = df[df['Label'] == 'L'].pivot_table(index=['Run', 'Protein.Group', 'Precursor.Id'], aggfunc='first').add_suffix(' L')
         pivot_M = df[df['Label'] == 'M'].pivot_table(index=['Run', 'Protein.Group', 'Precursor.Id'], aggfunc='first').add_suffix(' M')
         pivot_H = df[df['Label'] == 'H'].pivot_table(index=['Run', 'Protein.Group', 'Precursor.Id'], aggfunc='first').add_suffix(' H')
-        
         # Merge the pivoted DataFrames
         merged_df = pd.concat([pivot_L, pivot_M, pivot_H], axis=1)
         # Reset index to make 'Run', 'Protein.Group', and 'Precursor.Id' as columns
@@ -68,7 +67,7 @@ class HrefRollUp:
         return df
     
     def compute_protein_level(self, df): # this function looks for at least 3 valid values for each ratio and sums Precursor.Quantity (which is the sum of precursor translated values) for total intensity
-        print('Rolling up to protein level')
+        print('Rolling up to protein level, this may take some time depending on size of dataset')
         # Function to filter values and compute median
         def valid_median(series):
             valid_series = series.replace([0, np.inf, -np.inf], np.nan).dropna()
@@ -78,7 +77,6 @@ class HrefRollUp:
         def valid_sum(series):
             valid_series = series.replace([0, np.inf, -np.inf], np.nan).dropna()
             return valid_series.sum() 
-        
         result = df.groupby(['Protein.Group', 'Run']).agg({
             'Precursor.Translated H/T': valid_median,
             'Precursor.Translated M/T': valid_median,
@@ -134,9 +132,9 @@ class HrefRollUp:
         l_pivot_df = df.pivot(index='Protein.Group', columns='Run', values='L')
         
         # then output each table to csv for h.href, l.href, m.href
-        h_pivot_df.to_csv(f'{path}/protein_groups/href_href.csv', sep=',')
-        m_pivot_df.to_csv(f'{path}/protein_groups/nsp_href.csv', sep=',')
-        l_pivot_df.to_csv(f'{path}/protein_groups/light_href.csv', sep=',')
+        h_pivot_df.to_csv(f'{path}/protein_groups/href.csv', sep=',')
+        m_pivot_df.to_csv(f'{path}/protein_groups/nsp.csv', sep=',')
+        l_pivot_df.to_csv(f'{path}/protein_groups/light.csv', sep=',')
 
         return h_pivot_df, m_pivot_df, l_pivot_df
 

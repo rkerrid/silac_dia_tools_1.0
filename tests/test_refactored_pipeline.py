@@ -2,7 +2,7 @@
 from icecream import ic
 from silac_dia_tools.pipeline_refactored.pipeline import Pipeline as pileline
 from silac_dia_tools.pipeline_refactored import generate_protein_groups
-from silac_dia_tools.pipeline_refactored import calculate_intensities_r
+# from silac_dia_tools.pipeline_refactored import calculate_intensities_r
 # from silac_dia_tools.pipeline_refactored import precursor_rollup  
 import pandas as pd 
 import matplotlib.pyplot as plt
@@ -463,9 +463,11 @@ if __name__ == "__main__":
 
  
    ##### Href pipeline poc
-    path = 'G:/My Drive/Data/data/240112 poc4 test/href testing refactored/'
-   
+    path = 'G:/My Drive/Data/data/20240216 eIF3D timsTOF/'
+    path = 'G:/My Drive/Data/data/240112 poc4 test/repeat measure/H/'
+    path = 'G:/My Drive/Data\data/eif4g optimization/test with new version/'
     pipeline = pileline( f'{path}', 'test_params.json', contains_reference = True, pulse_channel="M", meta='meta.csv')
+    # pipeline.make_metadata()
     pipeline.execute_pipeline()
  
     

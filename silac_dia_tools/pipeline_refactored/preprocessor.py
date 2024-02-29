@@ -28,8 +28,7 @@ class Preprocessor:
     def import_report(self):
         print('Beginning import report.tsv')
         start_time = time.time()
-        # use dask to read in file quickly to count rows for tqdm loading bar
-        
+                
         chunks = []
         filtered_out = []
         contaminants = []
@@ -50,6 +49,7 @@ class Preprocessor:
                 if self.meta_data is not None:
                     chunk = self.subset_based_on_metadata(chunk)
                     chunk = self.relabel_run(chunk)
+                
                 chunk['Genes'] = chunk['Genes'].fillna('')
                 chunk['Protein.Group'] = chunk['Protein.Group'].str.cat(chunk['Genes'], sep='-')
                 chunk['Label'] = ""
@@ -74,6 +74,7 @@ class Preprocessor:
                 chunks.append(chunk)
                 filtered_out.append(chunk_filtered_out)
                 contaminants.append(contam_chunk)
+                
                 
                 # if self.update:
                 #     print(f'Chunk {count} processed')

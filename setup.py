@@ -14,9 +14,13 @@ setup(
         'icecream',
         'seaborn',
         'fpdf',
-        'tqdm',#need to test
-        'pandastable',       'alphapept @ git+https://github.com/MannLabs/alphapept.git@master#egg=alphapept[stable]',  # specify the branch, tag, or commit
+        'tqdm',
+        'pandastable',       
+        'alphapept @ git+https://github.com/MannLabs/alphapept.git@master#egg=alphapept[stable]',  # specify the branch, tag, or commit
         "directlfq @ git+https://github.com/MannLabs/directlfq.git@development#egg=directlfq[stable,development-stable]",# specify the branch, tag, or commit
         
     ],
 )
+
+
+# need to install pandastable conda install -c conda-forge pandastable

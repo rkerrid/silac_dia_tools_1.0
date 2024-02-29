@@ -29,9 +29,9 @@ def create_report(path, params):
     # Read in each dataframe  
     # Load the data from all three CSV files
     file_paths = {
-        'reference': f'{path}/protein_groups/href_href.csv',
-        'light_proteome': f'{path}/protein_groups/light_href.csv',
-        'nsp_proteome': f'{path}/protein_groups/nsp_href.csv'
+        'reference': f'{path}/protein_groups/href.csv',
+        'light_proteome': f'{path}/protein_groups/light.csv',
+        'nsp_proteome': f'{path}/protein_groups/nsp.csv'
     }
     
     # Initialize a dictionary to hold the dataframes
@@ -78,9 +78,9 @@ def create_report(path, params):
         plot_data.plot(kind='bar', ax=ax, color=colors, width=0.8)
         
         # Customize the plot
-        plt.title('Comparison of Non-Zero Value Counts Across Datasets')
+        plt.title('Number of Protein Groups in Each Channel')
         plt.xlabel('Sample Columns')
-        plt.ylabel('Non-Zero Values Count')
+        plt.ylabel('IDs')
         plt.xticks(rotation=45, ha="right")
         plt.legend(labels)
         
@@ -108,7 +108,7 @@ def create_report(path, params):
         sum_data.plot(kind='bar', ax=ax, color=colors, width=0.8)
         
         # Customize the plot
-        plt.title('Comparison of Summed Values Across Datasets')
+        plt.title('Comparison of Summed Intensities Between Samples')
         plt.xlabel('Sample Columns')
         plt.ylabel('Summed Values')
         plt.xticks(rotation=45, ha="right")
