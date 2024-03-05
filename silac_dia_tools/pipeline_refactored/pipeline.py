@@ -12,23 +12,25 @@ from tkinter import messagebox, filedialog
 from pandastable import Table
 import json
 import dask.dataframe as dd
+from icecream import ic
 
 from .utils import manage_directories
 from .report import filtering_report, precursor_report, protein_group_report, protein_intensities_report, protein_groups_report_r
 
 from silac_dia_tools.pipeline_refactored.preprocessor import Preprocessor 
-from silac_dia_tools.pipeline_refactored.generate_protein_groups import HrefRollUp, LfqRollUp 
+from silac_dia_tools.pipeline_refactored.generate_protein_groups import DiaSis, DynamicSilacDiaSis, DynamicSilac
 
 
 class Pipeline:
-    def __init__(self, path, parameter_file, contains_reference=True, pulse_channel="M", meta=None):
+    def __init__(self, path, parameter_file, contains_reference=True, method='dia_sis', pulse_channel="M", meta=None):
         # Assign constructor variables
         self.path = path
         self.parameter_file = parameter_file
         self.pulse_channel = pulse_channel
         self.meta = meta
         self.contains_reference = contains_reference
-        
+        self.method = method
+   
         # Initialize class variables
         self.relable_with_meta = self._confirm_metadata()
         self.meta_data = self._load_meta_data() if self.relable_with_meta else None
@@ -88,15 +90,17 @@ class Pipeline:
         protein_groups_report_r.create_report(self.path, self.params)
         
     def execute_pipeline(self, generate_report=True):
-        self.preprocessor = Preprocessor(self.path, self.params, self.filter_cols, self.contains_reference, self.pulse_channel, self.meta_data)
+        self.preprocessor = Preprocessor(self.path, self.params, self.filter_cols, self.contains_reference, self.pulse_channel, self.method, self.meta_data)
         self.filtered_report, self.filtered_out_df, self.contaminants = self.preprocessor.import_report()
         
-        if self.contains_reference:
-            self.precursor_rollup = HrefRollUp(self.path, self.filtered_report)
+        if self.method == 'dia_sis':
+            self.precursor_rollup = DiaSis(self.path, self.filtered_report)
+        elif self.method == 'dynamic_dia_sis':
+            self.precursor_rollup = DynamicSilacDiaSis(self.path, self.filtered_report)
+        elif self.method == 'dynamic_silac':
+            self.precursor_rollup = DynamicSilac(self.path, self.filtered_report, self.pulse_channel)
         else:
-            self.precursor_rollup = LfqRollUp(self.path, self.filtered_report, self.pulse_channel)
-            generate_report=False
-            
+            print('incorrect method')            
         self.formatted_precursors, self.protein_groups = self.precursor_rollup.generate_protein_groups()
         
         # return self.protein_groups

@@ -15,7 +15,7 @@ import os
 from icecream import ic
 
 class Preprocessor:
-    def __init__(self, path, params, filter_cols, contains_reference, pulse_channel, meta_data=None):
+    def __init__(self, path, params, filter_cols, contains_reference, pulse_channel,  method, meta_data=None):
         self.path = path
         self.meta_data = meta_data
         self.params = params
@@ -24,6 +24,7 @@ class Preprocessor:
         self.filter_cols = filter_cols 
         self.contains_reference = contains_reference
         self.pulse_channel = pulse_channel
+        self.method = method
         
     def import_report(self):
         print('Beginning import report.tsv')
@@ -40,12 +41,12 @@ class Preprocessor:
         # Estimate the number of rows
         estimated_rows = file_size_bytes / average_row_size_bytes
         total_chunks = estimated_rows/self.chunk_size
-        
         for chunk in tqdm(pd.read_table(file_path, sep="\t", chunksize=self.chunk_size), 
                       total=total_chunks, desc='Estimated loading of report.tsv based on file size'):
                 # reduce data size by subsetting report.tsv based on metadata, and removing columns not needed for further analysis
                 # in the following loop we also annotate the silac chanels and append genes to Protein.Groups for downstream useage
                 pd.options.mode.chained_assignment = None  # Turn off SettingWithCopyWarning since adaptions are being made to original df during import
+                
                 if self.meta_data is not None:
                     chunk = self.subset_based_on_metadata(chunk)
                     chunk = self.relabel_run(chunk)
@@ -58,10 +59,12 @@ class Preprocessor:
                 chunk = self.remove_cols(chunk)
                 
                 # annotate df with SILAC chanel then apply strict filters to H by droping the precursor, or adding NaN for L and M channels if they dont pass loose filters
-                if self.contains_reference:
+                if self.method =='dynamic_dia_sis':
                     chunk, chunk_filtered_out = self.filter_channel_strict(chunk, "H") 
                     chunk = self.apply_nan_by_loose_filtering(chunk,"L")
                     chunk = self.apply_nan_by_loose_filtering(chunk,"M")
+                elif self.method == 'dia_sis':
+                    chunk, chunk_filtered_out = self.filter_channel_strict(chunk, "H") 
                 else:
                 # If the data contains no H refference, apply strict filtering to the L channel and loose filterings to the H or M channel that was used for the pulse
                     chunk, chunk_filtered_out = self.filter_channel_strict(chunk, "L")
@@ -91,7 +94,7 @@ class Preprocessor:
         return df, filtered_out_df, contaminants_df
 
 
-    def subset_based_on_metadata(self, chunk):
+    def subset_based_on_metadata(self, chunk):       
         filtered_chunk = chunk[chunk['Run'].isin(self.meta_data['Run'])]
         return filtered_chunk
     
