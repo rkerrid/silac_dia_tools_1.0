@@ -60,14 +60,15 @@ class Preprocessor:
                 
                 # annotate df with SILAC chanel then apply strict filters to H by droping the precursor, or adding NaN for L and M channels if they dont pass loose filters
                 if self.method =='dynamic_dia_sis':
-                    chunk, chunk_filtered_out = self.filter_channel_strict(chunk, "H") 
+                    chunk, chunk_filtered_out = self.filter_channel(chunk, "H") 
                     chunk = self.apply_nan_by_loose_filtering(chunk,"L")
                     chunk = self.apply_nan_by_loose_filtering(chunk,"M")
                 elif self.method == 'dia_sis':
-                    chunk, chunk_filtered_out = self.filter_channel_strict(chunk, "H") 
+                    chunk, chunk_filtered_out = self.filter_channel(chunk, "H") 
+                    chunk = self.apply_nan_by_loose_filtering(chunk,"L")
                 else:
                 # If the data contains no H refference, apply strict filtering to the L channel and loose filterings to the H or M channel that was used for the pulse
-                    chunk, chunk_filtered_out = self.filter_channel_strict(chunk, "L")
+                    chunk, chunk_filtered_out = self.filter_channel(chunk, "L")
                     chunk = self.apply_nan_by_loose_filtering(chunk, self.pulse_channel)
                 
                 contam_chunk = self.identify_contaminants(chunk)
@@ -81,8 +82,8 @@ class Preprocessor:
                 
                 # if self.update:
                 #     print(f'Chunk {count} processed')
-                if count == 1:
-                    break
+                # if count == 1:
+                #     break
             
         # append chunks to respective dfs and return  
         df = pd.concat(chunks, ignore_index=True)
@@ -122,7 +123,7 @@ class Preprocessor:
         chunk = chunk[cols]
         return chunk
 
-    def filter_channel_strict(self, chunk, label):
+    def filter_channel(self, chunk, label):
         ops = {
             "==": operator.eq, "<": operator.lt, "<=": operator.le,
             ">": operator.gt, ">=": operator.ge
@@ -133,7 +134,7 @@ class Preprocessor:
             # Start with a mask that selects all chanel rows
             h_rows_mask = chunk['Label'] == label
     
-            for column, condition in self.params['apply_strict_filters'].items():
+            for column, condition in self.params['apply_loose_filters'].items():
                 op = ops[condition['op']]
                 # Update the mask to keep chanel rows that meet the condition
                 h_rows_mask &= op(chunk[column], condition['value'])

@@ -7,10 +7,12 @@ Created on Thu Jan 25 10:49:28 2024
 import pandas as pd
 import numpy as np
 import time
+from tqdm import tqdm
 from icecream import ic
 from .utils import manage_directories
 
 from silac_dia_tools.pipeline.utils import dlfq_functions as dlfq
+
 
 class DynamicSilacDiaSis:
     def __init__(self, path, filtered_report):
@@ -23,8 +25,6 @@ class DynamicSilacDiaSis:
         
     def generate_protein_groups(self):
         start_time = time.time()
-        # Will use Precursor.Translated for quantification
-        quantification = 'Precursor.Translated'
         # formatting and ratios
         self.formatted_precursors = self.format_silac_channels(self.filtered_report)
         self.formatted_precursors = self.calculate_precursor_ratios(self.formatted_precursors)
@@ -75,7 +75,7 @@ class DynamicSilacDiaSis:
         runs = df['Run'].unique()
         runs_list = []
     
-        for run in runs:
+        for run in tqdm(runs, desc='Computing protein level ratios for each run'):
             run_df = df[df['Run'] == run]
     
             def combined_median(ms1_series, precursor_series):
@@ -209,7 +209,7 @@ class DiaSis:
         return merged_df
     
     def calculate_precursor_ratios(self, df):
-        print(f'Calculating SILAC ratios based on Ms1.Translated and Precursor.Translated')
+        print('Calculating SILAC ratios based on Ms1.Translated and Precursor.Translated')
         # Calculate ratios for all chanels (Precursor.Quantity is the total intensity of all 3 chanels, the default diann value has been overwritten at this point)
         df['Precursor.Translated H/T'] = df['Precursor.Translated H'] / (df['Precursor.Translated L'] + df['Precursor.Translated H'])
         df['Ms1.Translated H/T'] = df['Ms1.Translated H'] / (df['Ms1.Translated L'] + df['Ms1.Translated H'])
@@ -220,7 +220,7 @@ class DiaSis:
         runs = df['Run'].unique()
         runs_list = []
     
-        for run in runs:
+        for run in tqdm(runs, desc='Computing protein level ratios for each run'):
             run_df = df[df['Run'] == run]
     
             def combined_median(ms1_series, precursor_series):
@@ -345,33 +345,60 @@ class DynamicSilac:
         return merged_df
     
     def calculate_precursor_ratios(self, df, quantification):
-        df[f'{quantification} {self.pulse_channel}/T'] = df[f'{quantification} {self.pulse_channel}'] / df['Precursor.Quantity']
-        df[f'{quantification} L/T'] = df[f'{quantification} L'] / df['Precursor.Quantity']
-        df['Lib.PG.Q.Value'] = 0
+        print('Calculating SILAC ratios based on Ms1.Translated and Precursor.Translated')
+        # Calculate ratios for all chanels (Precursor.Quantity is the total intensity of all 3 chanels, the default diann value has been overwritten at this point)
+        df['Precursor.Quantity'] = df['Precursor.Translated L'] +  df['Precursor.Translated {self.pulse_channel}']
+        
+        df['Precursor.Translated {self.pulse_channel}/T'] = df['Precursor.Translated {self.pulse_channel}'] / df['Precursor.Quantity']
+        df['Ms1.Translated {self.pulse_channel}/T'] = df['Ms1.Translated {self.pulse_channel}'] / df['Precursor.Quantity']
+        
+        df['Precursor.Translated L/T'] = df['Precursor.Translated L'] / df['Precursor.Quantity']
+        df['Ms1.Translated L/T'] = df['Ms1.Translated L'] / df['Precursor.Quantity']
         return df
     
-    def compute_protein_level(self, df): # this function looks for at least 3 valid values for each ratio and sums Precursor.Quantity (which is the sum of precursor translated values) for total intensity
+    def compute_protein_level(self, df):
+        print('Rolling up to protein level')
+        runs = df['Run'].unique()
+        runs_list = []
+    
+        for run in tqdm(runs, desc='Computing protein level ratios for each run'):
+            run_df = df[df['Run'] == run]
+    
+            def combined_median(ms1_series, precursor_series):
+                # Replace invalid values with NaN and drop them
+                valid_ms1 = ms1_series.replace([0, np.inf, -np.inf], np.nan).dropna()
+                valid_precursor = precursor_series.replace([0, np.inf, -np.inf], np.nan).dropna()
+    
+                # Ensure at least 3 valid values in each series before combining
+                if len(valid_ms1) >= 2 and len(valid_precursor) >= 2:
+                    combined_series = np.concatenate([valid_ms1, valid_precursor])
+                    combined_series = np.log2(combined_series)  # Log-transform the combined series
+                    return 2 ** np.median(combined_series)  # Return the median of the log-transformed values
+                else:
+                    return np.nan
+    
+            def valid_sum(series):
+                valid_series = series.replace([0, np.inf, -np.inf], np.nan).dropna()
+                return valid_series.sum()
+    
+            # Group by protein group and apply the custom aggregation
+            grouped = run_df.groupby(['Protein.Group']).apply(lambda x: pd.Series({
+                '{self.pulse_channel}/T ratio': combined_median(x['Ms1.Translated {self.pulse_channel}/T'], x['Precursor.Translated {self.pulse_channel}/T']),
+                'L/T ratio': combined_median(x['Ms1.Translated L/T'], x['Precursor.Translated L/T']),
+                'Precursor.Quantity': valid_sum(x['Precursor.Quantity'])
+            })).reset_index()
+            
+            grouped['Run'] = run
+            runs_list.append(grouped)
+    
+        result = pd.concat(runs_list, ignore_index=True)
+        result['{self.pulse_channel}'] = result['{self.pulse_channel}/T ratio']*result['Precursor.Quantity']
+        result['L'] = result['L/T ratio']*result['Precursor.Quantity']
         
-        # Function to filter values and compute median
-        def valid_median(series):
-            valid_series = series.replace([0, np.inf, -np.inf], np.nan).dropna()
-            valid_series = np.log2(valid_series)
-            return 2 **valid_series.median() if len(valid_series) >= 2 else np.nan
-        
-        def valid_sum(series):
-            valid_series = series.replace([0, np.inf, -np.inf], np.nan).dropna()
-            return valid_series.sum() 
-        
-        result = df.groupby(['Protein.Group', 'Run']).agg({
-            f'Precursor.Translated {self.pulse_channel}/T': valid_median,
-            'Precursor.Translated L/T': valid_median,
-            'Precursor.Quantity': valid_sum        
-        })
-        result[f'{self.pulse_channel}'] = result[f'Precursor.Translated {self.pulse_channel}/T']*result['Precursor.Quantity']
-        result['L'] = result['Precursor.Translated L/T']*result['Precursor.Quantity']
-        result = result.reset_index()
-        
-        cols = ['Run', 'Protein.Group', 'Precursor.Quantity', f'{self.pulse_channel}', 'L', f'Precursor.Translated {self.pulse_channel}/T', 'Precursor.Translated L/T' ] # fix this 
+        result['Lib.PG.Q.Value'] = 0
+        cols = ['Run','Protein.Group', '{self.pulse_channel}', 'L', 'Precursor.Quantity', 'Lib.PG.Q']
+    
+        # Returning the dataframe with specified columns
         return result[cols]
     
     def perform_lfq(self, path):
@@ -394,9 +421,7 @@ class DynamicSilac:
         
         return long_df
     
-    def merge_dlfq_intensities(self, df, dlfq):
-        df_copy = df.copy(deep=True)
-        
+    def merge_dlfq_intensities(self, df, dlfq):     
         # Merge the original DataFrame with the h_ref DataFrame
         merged_df = df.merge(dlfq, on=['Protein.Group','Run'], how='inner')
         merged_df['L_norm'] = merged_df['Precursor.Translated L/T' ] *merged_df['Intensity']

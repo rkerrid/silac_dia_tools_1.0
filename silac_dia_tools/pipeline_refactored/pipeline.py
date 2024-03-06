@@ -109,6 +109,7 @@ class Pipeline:
             self._generate_reports() 
 
     def make_metadata(self):
+        print("Searching report.tsv for unique runs for metadata, use pop up to enter metadata or copy and past selected runs to a spreadsheet and save as .csv file")
         root = tk.Tk()
         app = TestApp(self.path, root)
         root.protocol("WM_DELETE_WINDOW", app.on_closing)
