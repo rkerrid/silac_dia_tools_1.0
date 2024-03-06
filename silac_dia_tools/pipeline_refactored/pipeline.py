@@ -103,9 +103,9 @@ class Pipeline:
             print('incorrect method')            
         self.formatted_precursors, self.protein_groups = self.precursor_rollup.generate_protein_groups()
         
-        # return self.protein_groups
+        self._save_preprocessing()
+        
         if generate_report:
-            self._save_preprocessing()
             self._generate_reports() 
 
     def make_metadata(self):
@@ -116,6 +116,7 @@ class Pipeline:
         app.pack(fill="both", expand=True)  # Ensure the app fills the root window
         root.mainloop()
             
+        
 class TestApp(tk.Frame):
     def __init__(self, path, parent=None):
         super().__init__(parent)
