@@ -463,8 +463,10 @@ if __name__ == "__main__":
 
 
     path = 'G:/My Drive/Data/data/20240216 eIF3D timsTOF/'
-    path = 'G:/My Drive/Data/data/240112 poc4 test/repeat measure/H/'
-    path = 'G:/My Drive/Data/data/20240306 eIF 5 lines/3d G3 G2/'
+    # path = 'G:/My Drive/Data/data/20240306 eIF 5 lines/3d G3 G2/'
+    path = 'G:/My Drive/Data/data/20240306 eIF 5 lines/3d G3 G2/3D only/'
+    # path = 'G:/My Drive/Data/data/20240306 eIF 5 lines/G1 E/'
+    path = 'G:/My Drive/Data/data/240112 poc4 test/20240314 adapted pipeline/'
     pipeline = pileline( f'{path}', 'test_params.json', contains_reference = True, method = 'dynamic_dia_sis', pulse_channel="M", meta='meta.csv')
     # pipeline.make_metadata()
 
