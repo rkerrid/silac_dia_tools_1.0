@@ -18,7 +18,7 @@ from .utils import manage_directories
 from .report import filtering_report, precursor_report, protein_group_report, protein_intensities_report, protein_groups_report_r
 
 from silac_dia_tools.pipeline_refactored.preprocessor import Preprocessor 
-from silac_dia_tools.pipeline_refactored.generate_protein_groups import DiaSis, DynamicSilacDiaSis, DynamicSilac
+from silac_dia_tools.pipeline_refactored.generate_protein_groups import DiaSis, DynamicDiaSis, DynamicSilac
 
 
 class Pipeline:
@@ -96,9 +96,10 @@ class Pipeline:
         if self.method == 'dia_sis':
             self.precursor_rollup = DiaSis(self.path, self.filtered_report)
         elif self.method == 'dynamic_dia_sis':
-            self.precursor_rollup = DynamicSilacDiaSis(self.path, self.filtered_report)
+            self.precursor_rollup = DynamicDiaSis(self.path, self.filtered_report)
         elif self.method == 'dynamic_silac':
             self.precursor_rollup = DynamicSilac(self.path, self.filtered_report, self.pulse_channel)
+            generate_report = False
         else:
             print('incorrect method')            
         self.formatted_precursors, self.protein_groups = self.precursor_rollup.generate_protein_groups()

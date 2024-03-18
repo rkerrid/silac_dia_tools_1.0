@@ -14,7 +14,7 @@ from .utils import manage_directories
 from silac_dia_tools.pipeline.utils import dlfq_functions as dlfq
 
 
-class DynamicSilacDiaSis:
+class DynamicDiaSis:
     def __init__(self, path, filtered_report):
         self.path = path
         self.filtered_report = filtered_report
@@ -25,14 +25,24 @@ class DynamicSilacDiaSis:
         
     def generate_protein_groups(self):
         start_time = time.time()
-        # formatting and ratios
+        # formatting SILAC channels
         self.formatted_precursors = self.format_silac_channels(self.filtered_report)
+        
+        # Calculate precursor ratios
         self.formatted_precursors = self.calculate_precursor_ratios(self.formatted_precursors)
-        self.protein_groups = self.compute_protein_level(self.formatted_precursors)
-        # Adjusting intensities and outputing data
+        
+        # Calculate global heavy reference df 
         self.href_df = self.calculate_href_intensities(self.formatted_precursors)
+        
+        # Calculate protein level ratios
+        self.protein_groups = self.compute_protein_level(self.formatted_precursors)
+        
+        # Merge href with protein groups to generate normalized intensities         
         self.protein_groups = self.href_normalization(self.protein_groups, self.href_df)
+        
+        # Format and output protein groups for light, NSP, and href dfs
         self.output_protein_groups(self.protein_groups, self.path)
+        
         end_time = time.time()
         print(f"Time taken to generate protein groups: {end_time - start_time} seconds")
         return self.formatted_precursors, self.protein_groups
@@ -43,18 +53,23 @@ class DynamicSilacDiaSis:
         pivot_L = df[df['Label'] == 'L'].pivot_table(index=['Run', 'Protein.Group', 'Precursor.Id'], aggfunc='first').add_suffix(' L')
         pivot_M = df[df['Label'] == 'M'].pivot_table(index=['Run', 'Protein.Group', 'Precursor.Id'], aggfunc='first').add_suffix(' M')
         pivot_H = df[df['Label'] == 'H'].pivot_table(index=['Run', 'Protein.Group', 'Precursor.Id'], aggfunc='first').add_suffix(' H')
+        
         # Merge the pivoted DataFrames
-        merged_df = pd.concat([pivot_L, pivot_M, pivot_H], axis=1)
+        formatted_precursors = pd.concat([pivot_L, pivot_M, pivot_H], axis=1)
+        
         # Reset index to make 'Run', 'Protein.Group', and 'Precursor.Id' as columns
-        merged_df.reset_index(inplace=True)
-    
-        # remove all rows that contain a NaN under the Label H column (i.e., no H precursor is present for that row)
-        # Apply dropna on merged_df instead of df
-        merged_df = merged_df.dropna(subset=['Precursor.Translated H'])
-        # replace precursor quantity with summed silac channels as input for direct lefq and as 'total intensity' for href quantification
-        merged_df['Precursor.Quantity'] = merged_df['Precursor.Translated H'] + merged_df['Precursor.Translated M'] + merged_df['Precursor.Translated L'] 
+        formatted_precursors.reset_index(inplace=True)
+        
+        # Replace 0, inf, -inf with NaN for the specified columns
+        formatted_precursors['Precursor.Translated H'] = formatted_precursors['Precursor.Translated H'].replace([0, np.inf, -np.inf], np.nan)
+        formatted_precursors['Precursor.Translated L'] = formatted_precursors['Precursor.Translated L'].replace([0, np.inf, -np.inf], np.nan)
+        formatted_precursors['Precursor.Translated M'] = formatted_precursors['Precursor.Translated M'].replace([0, np.inf, -np.inf], np.nan)
+        
+        formatted_precursors['Ms1.Translated H'] = formatted_precursors['Ms1.Translated H'].replace([0, np.inf, -np.inf], np.nan)
+        formatted_precursors['Ms1.Translated L'] = formatted_precursors['Ms1.Translated L'].replace([0, np.inf, -np.inf], np.nan)
+        formatted_precursors['Ms1.Translated L'] = formatted_precursors['Ms1.Translated M'].replace([0, np.inf, -np.inf], np.nan)
  
-        return merged_df
+        return formatted_precursors    
     
     def calculate_precursor_ratios(self, df):
         print('Calculating SILAC ratios based on Ms1.Translated and Precursor.Translated')
@@ -69,20 +84,14 @@ class DynamicSilacDiaSis:
         return df
     
     def calculate_href_intensities(self, df):
+        df = df.copy(deep = True)
+        df = df.dropna(subset=['Precursor.Translated H','Ms1.Translated H'])
         
         def combined_median(ms1_series, precursor_series):
-            # Replace invalid values with NaN and drop them
-            valid_ms1 = ms1_series.replace([0, np.inf, -np.inf], np.nan).dropna()
-            valid_precursor = precursor_series.replace([0, np.inf, -np.inf], np.nan).dropna()
-       
-            # Ensure at least 3 valid values in each series before combining
-            if len(valid_ms1) >= 1 or len(valid_precursor) >= 1:
-                combined_series = np.concatenate([valid_ms1, valid_precursor])
-                combined_series = np.log10(combined_series)  # Log-transform the combined series
-                return np.median(combined_series)  # Return the median of the log-transformed values
-            else:
-                return np.nan
-       
+            combined_series = np.concatenate([ms1_series, precursor_series])
+            combined_series = np.log10(combined_series)  # Log-transform the combined series
+            return np.median(combined_series)  # Return the median of the log-transformed values
+         
         # Group by protein group and apply the custom aggregation
         grouped = df.groupby(['Protein.Group']).apply(lambda x: pd.Series({
             'href': combined_median(x['Ms1.Translated H'], x['Precursor.Translated H']) 
@@ -94,24 +103,19 @@ class DynamicSilacDiaSis:
         print('Rolling up to protein level')
         runs = df['Run'].unique()
         runs_list = []
+        
+        # Drop non shared precursor and ms1 translated ratios for L/H and M/H
+        df = df.dropna(subset=['Precursor.Translated L/H','Ms1.Translated L/H'])
+        df = df.dropna(subset=['Precursor.Translated M/H','Ms1.Translated M/H'])
     
         for run in tqdm(runs, desc='Computing protein level ratios for each run'):
             run_df = df[df['Run'] == run]
     
             def combined_median(ms1_series, precursor_series):
-                # Replace invalid values with NaN and drop them
-                valid_ms1 = ms1_series.replace([0, np.inf, -np.inf], np.nan).dropna()
-                valid_precursor = precursor_series.replace([0, np.inf, -np.inf], np.nan).dropna()
-    
-                # Ensure at least 3 valid values in each series before combining
-                if len(valid_ms1) >= 1 or len(valid_precursor) >= 1:
-                    combined_series = np.concatenate([valid_ms1, valid_precursor])
-                    combined_series = np.log10(combined_series)  # Log-transform the combined series
-                    return np.median(combined_series)  # Return the median of the log-transformed values
-                else:
-                    return np.nan
-    
-    
+                combined_series = np.concatenate([ms1_series, precursor_series])
+                combined_series = np.log10(combined_series)  # Log-transform the combined series
+                return np.median(combined_series)  # Return the median of the log-transformed values
+             
             # Group by protein group and apply the custom aggregation
             grouped = run_df.groupby(['Protein.Group']).apply(lambda x: pd.Series({
                 'L/H ratio': combined_median(x['Ms1.Translated L/H'], x['Precursor.Translated L/H']),
@@ -167,6 +171,7 @@ class DynamicSilacDiaSis:
         return h_pivot_df, m_pivot_df, l_pivot_df
 
 
+
 class DiaSis:
     def __init__(self, path, filtered_report):
         self.path = path
@@ -175,21 +180,31 @@ class DiaSis:
         
         self.formatted_precursors = None
         self.protein_groups = None
+        self.href_df = None
         
     def generate_protein_groups(self):
         start_time = time.time()
-
-        # formatting and ratios
+        # formatting channels
         self.formatted_precursors = self.format_silac_channels(self.filtered_report)
+        
+        # calculate L/H ratios for each precursor       
         self.formatted_precursors = self.calculate_precursor_ratios(self.formatted_precursors)
+        
+        # Calculate global href df
+        self.href_df = self.calculate_precursor_href_intensities(self.formatted_precursors)
+        
+        # Compute protein level ratios
         self.protein_groups = self.compute_protein_level(self.formatted_precursors)
-        # self.protein_groups = self.compute_protein_level_test(self.formatted_precursors)
-
-        # Adjusting intensities and outputing data
-        self.protein_groups = self.calculate_href_intensities(self.protein_groups)
+        
+        # Merge href df with protein level ratios to normalize light intensities
+        self.protein_groups = self.href_normalization(self.protein_groups, self.href_df) 
+        
+        # Output protein groups table of Light intensities and corrosponding href df
         self.output_protein_groups(self.protein_groups, self.path)
+        
         end_time = time.time()
         print(f"Time taken to generate protein groups: {end_time - start_time} seconds")
+        
         return self.formatted_precursors, self.protein_groups
     
     def format_silac_channels(self, df):
@@ -199,107 +214,102 @@ class DiaSis:
         pivot_H = df[df['Label'] == 'H'].pivot_table(index=['Run', 'Protein.Group', 'Precursor.Id'], aggfunc='first').add_suffix(' H')
         
         # Merge the pivoted DataFrames
-        merged_df = pd.concat([pivot_L, pivot_H], axis=1)
+        formatted_precursors = pd.concat([pivot_L, pivot_H], axis=1)
+        
         # Reset index to make 'Run', 'Protein.Group', and 'Precursor.Id' as columns
-        merged_df.reset_index(inplace=True)
-    
-        # remove all rows that contain a NaN under the Label H column (i.e., no H precursor is present for that row)
-        # Apply dropna on merged_df instead of df
-        # merged_df = merged_df.dropna(subset=['Precursor.Translated H'])
-        # replace precursor quantity with summed silac channels as input for direct lefq and as 'total intensity' for href quantification
-        merged_df['Precursor.Quantity'] = merged_df['Precursor.Translated H'] + merged_df['Precursor.Translated L'] 
- 
-        return merged_df
-    
+        formatted_precursors.reset_index(inplace=True)
+        
+        # Replace 0, inf, -inf with NaN for the specified columns
+        formatted_precursors['Precursor.Translated H'] = formatted_precursors['Precursor.Translated H'].replace([0, np.inf, -np.inf], np.nan)
+        formatted_precursors['Precursor.Translated L'] = formatted_precursors['Precursor.Translated L'].replace([0, np.inf, -np.inf], np.nan)
+        
+        formatted_precursors['Ms1.Translated H'] = formatted_precursors['Ms1.Translated H'].replace([0, np.inf, -np.inf], np.nan)
+        formatted_precursors['Ms1.Translated L'] = formatted_precursors['Ms1.Translated L'].replace([0, np.inf, -np.inf], np.nan)
+        
+        return formatted_precursors
+
     def calculate_precursor_ratios(self, df):
         print('Calculating SILAC ratios based on Ms1.Translated and Precursor.Translated')
-        # Calculate ratios for all chanels (Precursor.Quantity is the total intensity of all 3 chanels, the default diann value has been overwritten at this point)
-        df['Precursor.Translated H/T'] = df['Precursor.Translated H'] / (df['Precursor.Translated L'] + df['Precursor.Translated H'])
-        df['Ms1.Translated H/T'] = df['Ms1.Translated H'] / (df['Ms1.Translated L'] + df['Ms1.Translated H'])
-        return df    
+        df['Precursor.Translated L/H'] = df['Precursor.Translated L'] / df['Precursor.Translated H'] 
+        df['Ms1.Translated L/H'] = df['Ms1.Translated L'] / df['Ms1.Translated H'] 
+      
+        return df
 
+    def calculate_precursor_href_intensities(self, df):
+        print('Calculate href df')
+        df = df.copy(deep = True)
+        df = df.dropna(subset=['Precursor.Translated H','Ms1.Translated H'])
+        
+        def combined_median(ms1_series, precursor_series):
+            combined_series = np.concatenate([ms1_series, precursor_series])
+            combined_series = np.log10(combined_series)  # Log-transform the combined series
+            return np.median(combined_series)  # Return the median of the log-transformed values
+       
+        # Group by protein group and apply the custom aggregation
+        grouped = df.groupby(['Protein.Group']).apply(lambda x: pd.Series({
+            'href': combined_median(x['Ms1.Translated H'], x['Precursor.Translated H']) 
+        })).reset_index()
+       
+        return grouped[['Protein.Group', 'href']]
+    
+   
     def compute_protein_level(self, df):
         print('Rolling up to protein level')
         runs = df['Run'].unique()
         runs_list = []
-    
+        
+        # Drop non shared precursor and ms1 translated ratios
+        df = df.dropna(subset=['Precursor.Translated L/H','Ms1.Translated L/H'])
+        
         for run in tqdm(runs, desc='Computing protein level ratios for each run'):
             run_df = df[df['Run'] == run]
     
-            def combined_median(ms1_series, precursor_series):
-                # Replace invalid values with NaN and drop them
-                valid_ms1 = ms1_series.replace([0, np.inf, -np.inf], np.nan).dropna()
-                valid_precursor = precursor_series.replace([0, np.inf, -np.inf], np.nan).dropna()
-    
-                # Ensure at least 3 valid values in each series before combining
-                if len(valid_ms1) >= 2 and len(valid_precursor) >= 2:
-                    combined_series = np.concatenate([valid_ms1, valid_precursor])
-                    combined_series = np.log2(combined_series)  # Log-transform the combined series
-                    return 2 ** np.median(combined_series)  # Return the median of the log-transformed values
-                else:
-                    return np.nan
-    
-            def valid_sum(series):
-                valid_series = series.replace([0, np.inf, -np.inf], np.nan).dropna()
-                return valid_series.sum()
+            def combined_median_ratios(ms1_series, precursor_series):
+                combined_series = np.concatenate([ms1_series, precursor_series])
+                combined_series = np.log10(combined_series)  # Log-transform the combined series
+                return np.median(combined_series)  # Return the median of the log-transformed values
     
             # Group by protein group and apply the custom aggregation
-            grouped = run_df.groupby(['Protein.Group']).apply(lambda x: pd.Series({
-                'H/T ratio': combined_median(x['Ms1.Translated H/T'], x['Precursor.Translated H/T']),
-                'Precursor.Quantity': valid_sum(x['Precursor.Quantity'])
+            grouped = run_df.groupby('Protein.Group').apply(lambda x: pd.Series({
+                'L/H ratio': combined_median_ratios(x['Ms1.Translated L/H'], x['Precursor.Translated L/H'])
             })).reset_index()
             
             grouped['Run'] = run
             runs_list.append(grouped)
     
         result = pd.concat(runs_list, ignore_index=True)
-        result['H'] = result['H/T ratio']*result['Precursor.Quantity']
-        result['L'] = result['Precursor.Quantity'] - result['H']
-        cols = ['Run','Protein.Group', 'H', 'L', 'H/T ratio', 'Precursor.Quantity']
-    
-        # Returning the dataframe with specified columns
+        cols = ['Run', 'Protein.Group', 'L/H ratio']
         return result[cols]
 
-    # Adjust unnormalized intensities
-    def calculate_href_intensities(self, df):
+    
+    def href_normalization(self, protein_groups, href):
         print('Calculating adjusted intensities using reference')
-        df_copy = df.copy(deep=True)
+        # Merge the href_df onto protein groups containing optimized ratios
+        merged_df = protein_groups.merge(href, on='Protein.Group', how='inner')
         
-        # Calculate median H value and reset index to make it a DataFrame
-        h_ref = df_copy.groupby('Protein.Group')['H'].median().reset_index()
-        
-        # Rename the median column to 'h_ref'
-        h_ref = h_ref.rename(columns={'H': 'h_ref'})
-        
-        # Merge the original DataFrame with the h_ref DataFrame
-        merged_df = df.merge(h_ref, on='Protein.Group', how='inner')
-        
-        # calculate factor to multiply other chanels by dividing href by original H intensity for each PG
-        merged_df['factor'] = merged_df['h_ref']/merged_df['H']
-        
-        # Normalize other chanels with this factor
-        merged_df['H_norm'] = merged_df['H']*merged_df['factor']
-        merged_df['L_norm'] = merged_df['L']*merged_df['factor']
+        # Obtain normalized light intensities by adding the L/H ratio to the heavy refference in log space
+        merged_df['L_norm'] = merged_df['L/H ratio'] + merged_df['href']
         
         return merged_df
+    
     
     def output_protein_groups(self, df, path):
         manage_directories.create_directory(self.path, 'protein_groups')
         print(f'Outputing normalized protein intensities to {path}/protein_groups')
-        cols = ['Run', 'Protein.Group', 'H_norm', 'L_norm']
-        df = df[cols]
-        df = df.rename(columns={'H_norm': 'H', 'L_norm': 'L'})
+        
+        # Subset and rename columns
+        df = df[['Run', 'Protein.Group', 'href', 'L_norm']]
+        df = df.rename(columns={'href': 'H', 'L_norm': 'L'})
 
-        # Pivoting for 'H'
+        # Pivoting for 'H' to produce href output in wide format
         h_pivot_df = df.pivot(index='Protein.Group', columns='Run', values='H')
         
-        
-        # Pivoting for 'L'
+        # Pivoting for 'L' to produce normalized light intensites in wide format
         l_pivot_df = df.pivot(index='Protein.Group', columns='Run', values='L')
-        
-        # then output each table to csv for h.href, l.href, m.href
-        h_pivot_df.to_csv(f'{path}/protein_groups/href_href.csv', sep=',')
-        l_pivot_df.to_csv(f'{path}/protein_groups/light_href.csv', sep=',')
+
+        # then output each table to csv 
+        h_pivot_df.to_csv(f'{path}/protein_groups/href.csv', sep=',')
+        l_pivot_df.to_csv(f'{path}/protein_groups/light.csv', sep=',')
 
         return h_pivot_df, l_pivot_df
 
@@ -313,20 +323,17 @@ class DynamicSilac:
         self.formatted_precursors = None
         self.protein_groups = None
         
-    def generate_protein_groups(self):
-        # Will use Precursor.Translated for quantification
-    
-        start_time = time.time()
-        # Will use Precursor.Translated for quantification
-        quantification = 'Precursor.Translated'
+    def generate_protein_groups(self):  
+        start_time = time.time()        
         # formatting and ratios
         self.formatted_precursors = self.format_silac_channels(self.filtered_report)
-        self.formatted_precursors = self.calculate_precursor_ratios(self.formatted_precursors, quantification)
-        self.protein_groups = self.compute_protein_level(self.formatted_precursors)
+        self.formatted_precursors = self.calculate_precursor_ratios(self.formatted_precursors)
+        self.protein_groups = self.compute_protein_level_ratios(self.formatted_precursors)
+        
         # Adjusting intensities and outputing data
         dlfq = self.perform_lfq(self.path)
         self.protein_groups = self.merge_dlfq_intensities(self.protein_groups, dlfq)
-        self.output_protein_groups(self.protein_groups, quantification, self.path)
+        self.output_protein_groups(self.protein_groups, self.path)
         end_time = time.time()
         print(f"Time taken to generate protein groups: {end_time - start_time} seconds")
         return self.formatted_precursors, self.protein_groups
@@ -337,69 +344,62 @@ class DynamicSilac:
         pivot_M = df[df['Label'] == f'{self.pulse_channel}'].pivot_table(index=['Run', 'Protein.Group', 'Precursor.Id'], aggfunc='first').add_suffix(' M')
         
         # Merge the pivoted DataFrames
-        merged_df = pd.concat([pivot_L, pivot_M], axis=1)
+        formatted_precursors = pd.concat([pivot_L, pivot_M], axis=1)
         # Reset index to make 'Run', 'Protein.Group', and 'Precursor.Id' as columns
-        merged_df.reset_index(inplace=True)
+        formatted_precursors.reset_index(inplace=True)
     
-  
-        print("Column 'Label H' not found in DataFrame")
-        print(merged_df.columns.values.tolist())
-        merged_df['Precursor.Quantity'] = merged_df[f'Precursor.Translated {self.pulse_channel}'] + merged_df['Precursor.Translated L'] 
-        return merged_df
+        # Replace 0, inf, -inf with NaN for the specified columns
+        formatted_precursors[f'Precursor.Translated {self.pulse_channel}'] = formatted_precursors[f'Precursor.Translated {self.pulse_channel}'].replace([0, np.inf, -np.inf], np.nan)
+        formatted_precursors['Precursor.Translated L'] = formatted_precursors['Precursor.Translated L'].replace([0, np.inf, -np.inf], np.nan)
+        
+        formatted_precursors[f'Ms1.Translated {self.pulse_channel}'] = formatted_precursors[f'Ms1.Translated {self.pulse_channel}'].replace([0, np.inf, -np.inf], np.nan)
+        formatted_precursors['Ms1.Translated L'] = formatted_precursors['Ms1.Translated L'].replace([0, np.inf, -np.inf], np.nan)
+        return formatted_precursors
     
-    def calculate_precursor_ratios(self, df, quantification):
+    def calculate_precursor_ratios(self, df):
         print('Calculating SILAC ratios based on Ms1.Translated and Precursor.Translated')
         # Calculate ratios for all chanels (Precursor.Quantity is the total intensity of all 3 chanels, the default diann value has been overwritten at this point)
-        df['Precursor.Quantity'] = df['Precursor.Translated L'] +  df['Precursor.Translated {self.pulse_channel}']
+        df['Precursor.Quantity'] = df['Precursor.Translated L'].fillna(0) +  df[f'Precursor.Translated {self.pulse_channel}'].fillna(0)
         
-        df['Precursor.Translated {self.pulse_channel}/T'] = df['Precursor.Translated {self.pulse_channel}'] / df['Precursor.Quantity']
-        df['Ms1.Translated {self.pulse_channel}/T'] = df['Ms1.Translated {self.pulse_channel}'] / df['Precursor.Quantity']
-        
-        df['Precursor.Translated L/T'] = df['Precursor.Translated L'] / df['Precursor.Quantity']
-        df['Ms1.Translated L/T'] = df['Ms1.Translated L'] / df['Precursor.Quantity']
+        df[f'Precursor.Translated {self.pulse_channel}/L'] = df[f'Precursor.Translated {self.pulse_channel}'] / df['Precursor.Translated L']
+        df[f'Ms1.Translated {self.pulse_channel}/L'] = df[f'Ms1.Translated {self.pulse_channel}'] / df['Ms1.Translated L']
+        # Replace invalid values with NaN and drop them
+        df[f'Precursor.Translated {self.pulse_channel}/L'] = df[f'Precursor.Translated {self.pulse_channel}/L'].replace([0, np.inf, -np.inf], np.nan)
+        df[f'Ms1.Translated {self.pulse_channel}/L'] = df[f'Ms1.Translated {self.pulse_channel}/L'].replace([0, np.inf, -np.inf], np.nan)
+        df['Lib.PG.Q.Value'] = 0
         return df
     
-    def compute_protein_level(self, df):
+    def compute_protein_level_ratios(self, df):
         print('Rolling up to protein level')
         runs = df['Run'].unique()
         runs_list = []
-    
+        
+        
+        df = df.dropna(subset=[f'Ms1.Translated {self.pulse_channel}/L',f'Precursor.Translated {self.pulse_channel}/L'])
+        
         for run in tqdm(runs, desc='Computing protein level ratios for each run'):
             run_df = df[df['Run'] == run]
     
             def combined_median(ms1_series, precursor_series):
-                # Replace invalid values with NaN and drop them
-                valid_ms1 = ms1_series.replace([0, np.inf, -np.inf], np.nan).dropna()
-                valid_precursor = precursor_series.replace([0, np.inf, -np.inf], np.nan).dropna()
-    
-                # Ensure at least 3 valid values in each series before combining
-                if len(valid_ms1) >= 2 and len(valid_precursor) >= 2:
-                    combined_series = np.concatenate([valid_ms1, valid_precursor])
-                    combined_series = np.log2(combined_series)  # Log-transform the combined series
-                    return 2 ** np.median(combined_series)  # Return the median of the log-transformed values
-                else:
-                    return np.nan
-    
-            def valid_sum(series):
-                valid_series = series.replace([0, np.inf, -np.inf], np.nan).dropna()
-                return valid_series.sum()
+                combined_series = np.concatenate([ms1_series, precursor_series])
+                combined_series = np.log2(combined_series)  # Log-transform the combined series
+                return 2 ** np.median(combined_series)  # Return the median of the log-transformed values
+           
+            def valid_median(series):
+                # valid_series = series.replace([0, np.inf, -np.inf], np.nan).dropna()
+                return series.median()
     
             # Group by protein group and apply the custom aggregation
             grouped = run_df.groupby(['Protein.Group']).apply(lambda x: pd.Series({
-                '{self.pulse_channel}/T ratio': combined_median(x['Ms1.Translated {self.pulse_channel}/T'], x['Precursor.Translated {self.pulse_channel}/T']),
-                'L/T ratio': combined_median(x['Ms1.Translated L/T'], x['Precursor.Translated L/T']),
-                'Precursor.Quantity': valid_sum(x['Precursor.Quantity'])
+                f'{self.pulse_channel}/L ratio': combined_median(x[f'Ms1.Translated {self.pulse_channel}/L'], x[f'Precursor.Translated {self.pulse_channel}/L'])
             })).reset_index()
             
             grouped['Run'] = run
             runs_list.append(grouped)
     
         result = pd.concat(runs_list, ignore_index=True)
-        result['{self.pulse_channel}'] = result['{self.pulse_channel}/T ratio']*result['Precursor.Quantity']
-        result['L'] = result['L/T ratio']*result['Precursor.Quantity']
-        
-        result['Lib.PG.Q.Value'] = 0
-        cols = ['Run','Protein.Group', '{self.pulse_channel}', 'L', 'Precursor.Quantity', 'Lib.PG.Q']
+                
+        cols = ['Run','Protein.Group', f'{self.pulse_channel}/L ratio']
     
         # Returning the dataframe with specified columns
         return result[cols]
@@ -427,12 +427,12 @@ class DynamicSilac:
     def merge_dlfq_intensities(self, df, dlfq):     
         # Merge the original DataFrame with the h_ref DataFrame
         merged_df = df.merge(dlfq, on=['Protein.Group','Run'], how='inner')
-        merged_df['L_norm'] = merged_df['Precursor.Translated L/T' ] *merged_df['Intensity']
-        merged_df[f'{self.pulse_channel}_norm'] = merged_df[f'Precursor.Translated {self.pulse_channel}/T'] *  merged_df['Intensity']
+        merged_df['L_norm'] = merged_df[f'{self.pulse_channel}/L ratio' ] * merged_df['Intensity']
+        merged_df[f'{self.pulse_channel}_norm'] = merged_df['Intensity'] -  merged_df['L_norm']
      
         return merged_df
     
-    def output_protein_groups(self, df, quantification, path):
+    def output_protein_groups(self, df, path):
         manage_directories.create_directory(self.path, 'protein_groups')
 
         cols = ['Run', 'Protein.Group', f'{self.pulse_channel}_norm', 'L_norm']
