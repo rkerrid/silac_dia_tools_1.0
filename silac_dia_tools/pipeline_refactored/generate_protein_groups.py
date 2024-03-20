@@ -341,7 +341,7 @@ class DynamicSilac:
     def format_silac_channels(self, df):
         # Pivot for each label
         pivot_L = df[df['Label'] == 'L'].pivot_table(index=['Run', 'Protein.Group', 'Precursor.Id'], aggfunc='first').add_suffix(' L')
-        pivot_M = df[df['Label'] == f'{self.pulse_channel}'].pivot_table(index=['Run', 'Protein.Group', 'Precursor.Id'], aggfunc='first').add_suffix(' M')
+        pivot_M = df[df['Label'] == f'{self.pulse_channel}'].pivot_table(index=['Run', 'Protein.Group', 'Precursor.Id'], aggfunc='first').add_suffix(f' {self.pulse_channel}')
         
         # Merge the pivoted DataFrames
         formatted_precursors = pd.concat([pivot_L, pivot_M], axis=1)
@@ -375,7 +375,7 @@ class DynamicSilac:
         runs_list = []
         
         
-        df = df.dropna(subset=[f'Ms1.Translated {self.pulse_channel}/L',f'Precursor.Translated {self.pulse_channel}/L'])
+        df = df.dropna(subset=[f'Ms1.Translated {self.pulse_channel}/L', f'Precursor.Translated {self.pulse_channel}/L'])
         
         for run in tqdm(runs, desc='Computing protein level ratios for each run'):
             run_df = df[df['Run'] == run]
@@ -427,8 +427,10 @@ class DynamicSilac:
     def merge_dlfq_intensities(self, df, dlfq):     
         # Merge the original DataFrame with the h_ref DataFrame
         merged_df = df.merge(dlfq, on=['Protein.Group','Run'], how='inner')
-        merged_df['L_norm'] = merged_df[f'{self.pulse_channel}/L ratio' ] * merged_df['Intensity']
-        merged_df[f'{self.pulse_channel}_norm'] = merged_df['Intensity'] -  merged_df['L_norm']
+        
+        # Use ratios to calculate intensiteis
+        merged_df[f'{self.pulse_channel}_norm'] =  merged_df['Intensity'] / (merged_df[f'{self.pulse_channel}/L ratio' ] + 1)
+        merged_df['L_norm'] = merged_df[f'{self.pulse_channel}/L ratio'] *  merged_df[f'{self.pulse_channel}_norm']
      
         return merged_df
     

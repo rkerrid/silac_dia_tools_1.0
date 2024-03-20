@@ -34,6 +34,11 @@ def create_report(path, params):
         'nsp_proteome': f'{path}/protein_groups/nsp.csv'
     }
     
+    file_paths = {
+        'reference': f'{path}/protein_groups/nsp_dlfq.csv',
+        'light_proteome': f'{path}/protein_groups/light_dlfq.csv'
+    }
+    
     # Initialize a dictionary to hold the dataframes
     dataframes = {}
     

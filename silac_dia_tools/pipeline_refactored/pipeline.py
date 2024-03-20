@@ -84,7 +84,7 @@ class Pipeline:
     def _generate_reports(self):
         # Generate reports for filtering, precursors, and protein groups
         filtering_report.create_report(self.filtered_report, self.contaminants, self.filtered_out_df, self.path, self.params)
-        precursor_report.create_report(self.formatted_precursors, self.path, self.params)
+        # precursor_report.create_report(self.formatted_precursors, self.path, self.params)
         # protein_group_report.create_report(self.protein_groups, self.path, self.params)
         
         protein_groups_report_r.create_report(self.path, self.params)
@@ -99,7 +99,7 @@ class Pipeline:
             self.precursor_rollup = DynamicDiaSis(self.path, self.filtered_report)
         elif self.method == 'dynamic_silac':
             self.precursor_rollup = DynamicSilac(self.path, self.filtered_report, self.pulse_channel)
-            generate_report = False
+            
         else:
             print('incorrect method')            
         self.formatted_precursors, self.protein_groups = self.precursor_rollup.generate_protein_groups()
