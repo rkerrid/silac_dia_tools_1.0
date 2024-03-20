@@ -17,7 +17,7 @@ def import_ms_data_for_plotting(path, peptides):
         mz = df.mz
         intensity = df.intensity
         #plot each peptide
-        scan_plot(mz, intensity, peptide_details)
+        scan_plot(mz, intensity, peptide_details, path)
 
 def plot_points_and_lines(mz_values, intensity_values, expected_light_peak, expected_heavy_peak):
     for x, y in zip(mz_values, intensity_values):
@@ -56,7 +56,7 @@ def annotate_peaks(mz_values, intensity_values, expected_light_peak, expected_he
                          textcoords="offset points", xytext=(0, 5), ha='center')
 
 
-def scan_plot(mz_values, intensity_values, peptide_details):
+def scan_plot(mz_values, intensity_values, peptide_details, path):
     if peptide_details.empty:
         print("No peptide details found. Cannot create the plot.")
         return
@@ -86,4 +86,6 @@ def scan_plot(mz_values, intensity_values, peptide_details):
     plt.title(f'MS1 of {sequence} Charge: {charge} \n Raw file: {raw_file} \n RT: {retention_time}, Scan no: {scan_number}')
     plt.grid(True)
     plt.legend()
+    
+    plt.savefig(f'{path}{sequence}.png', format='png', dpi=300)
     plt.show()
