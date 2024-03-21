@@ -16,9 +16,9 @@ from silac_dia_tools.pipeline.utils import manage_directories
 
 
 
-def create_report(path, params):
+def create_report(path, params, method):
     # Construct the description string
-    params_str = "\n".join([f"{key} {item['op']} {item['value']}" for key, item in params['apply_strict_filters'].items()])
+    params_str = "\n".join([f"{key} {item['op']} {item['value']}" for key, item in params['apply_loose_filters'].items()])
     description = f"Parameters used:\n{params_str}"
     
     # Set up the PDF
@@ -28,16 +28,22 @@ def create_report(path, params):
     
     # Read in each dataframe  
     # Load the data from all three CSV files
-    file_paths = {
-        'reference': f'{path}/protein_groups/href.csv',
-        'light_proteome': f'{path}/protein_groups/light.csv',
-        'nsp_proteome': f'{path}/protein_groups/nsp.csv'
-    }
-    
-    file_paths = {
-        'reference': f'{path}/protein_groups/nsp_dlfq.csv',
-        'light_proteome': f'{path}/protein_groups/light_dlfq.csv'
-    }
+    if method == 'dynamic_dia_sis':
+        file_paths = {
+            'reference': f'{path}/protein_groups/href.csv',
+            'light_proteome': f'{path}/protein_groups/light.csv',
+            'newly_synthesized_proteom': f'{path}/protein_groups/nsp.csv'
+        }
+    elif method == 'dynamic_silac':
+        file_paths = {
+            'newly_synthesized_proteom': f'{path}/protein_groups/nsp.csv',
+            'light_proteome': f'{path}/protein_groups/light.csv'
+        }
+    else:
+        file_paths = {
+            'reference': f'{path}/protein_groups/href.csv',
+            'light_proteome': f'{path}/protein_groups/light.csv'
+        }
     
     # Initialize a dictionary to hold the dataframes
     dataframes = {}
@@ -66,8 +72,8 @@ def create_report(path, params):
         # Count non-zero values for each dataset
         non_zero_counts = {key: count_non_zeros(df) for key, df in dataframes.items()}
         
-        # Since we assume the column names are consistent across files, we'll use the column names from one of the datasets for plotting
-        sample_columns = non_zero_counts['reference'].index
+        # Since we assume the column names are consistent across files, we'll use the column names from teh light proteome for plotting
+        sample_columns = non_zero_counts['light_proteome'].index
         
         # Prepare data for plotting
         plot_data = pd.DataFrame({key: non_zero_counts[key] for key in non_zero_counts.keys()}, index=sample_columns)
@@ -76,7 +82,10 @@ def create_report(path, params):
         fig, ax = plt.subplots(figsize=(14, 8))
         
         # Colors for each dataset
-        colors = ['blue', 'orange', 'green']
+        if method == 'dynamic_dia_sis':
+            colors = ['blue', 'orange', 'green']
+        else:
+            colors = ['blue', 'orange']
         labels = list(non_zero_counts.keys())
         
         # Create bar plots

@@ -406,7 +406,7 @@ class DynamicSilac:
     
     def perform_lfq(self, path):
         dlfq_formatted_precursors = self.formatted_precursors
-        ic(self.formatted_precursors)
+        # ic(self.formatted_precursors)
         manage_directories.create_directory(self.path, 'dlfq')
 
         dlfq_formatted_precursors.to_csv(f'{path}/dlfq/dflq_formatted_report.tsv', sep='\t')
@@ -448,8 +448,8 @@ class DynamicSilac:
         l_pivot_df = df.pivot(index='Protein.Group', columns='Run', values='L')
         
         # then output each table to csv for h.href, l.href, m.href
-        m_pivot_df.to_csv(f'{path}nsp_dlfq.csv', sep=',')
-        l_pivot_df.to_csv(f'{path}light_dlfq.csv', sep=',')
+        m_pivot_df.to_csv(f'{path}protein_groups/nsp.csv', sep=',')
+        l_pivot_df.to_csv(f'{path}protein_groups/light.csv', sep=',')
     
         return  m_pivot_df, l_pivot_df
     
