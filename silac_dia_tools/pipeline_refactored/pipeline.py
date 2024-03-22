@@ -84,10 +84,10 @@ class Pipeline:
     def _generate_reports(self):
         # Generate reports for filtering, precursors, and protein groups
         filtering_report.create_report(self.filtered_report, self.contaminants, self.filtered_out_df, self.path, self.params)
-        # precursor_report.create_report(self.formatted_precursors, self.path, self.params)
+        precursor_report.create_report(self.formatted_precursors, self.path, self.params, self.method, self.pulse_channel)
         # protein_group_report.create_report(self.protein_groups, self.path, self.params)
         
-        protein_groups_report_r.create_report(self.path, self.params)
+        protein_groups_report_r.create_report(self.path, self.params, self.method)
         
     def execute_pipeline(self, generate_report=True):
         self.preprocessor = Preprocessor(self.path, self.params, self.filter_cols, self.contains_reference, self.pulse_channel, self.method, self.meta_data)

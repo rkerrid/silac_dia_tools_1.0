@@ -447,9 +447,10 @@ class DynamicSilac:
         # Pivoting for 'L'
         l_pivot_df = df.pivot(index='Protein.Group', columns='Run', values='L')
         
-        # then output each table to csv for h.href, l.href, m.href
+        # then output each table to csv for nsp and light proteomes
         m_pivot_df.to_csv(f'{path}/protein_groups/nsp.csv', sep=',')
         l_pivot_df.to_csv(f'{path}/protein_groups/light.csv', sep=',')
+
     
         return  m_pivot_df, l_pivot_df
     

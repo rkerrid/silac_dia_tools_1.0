@@ -16,7 +16,7 @@ from silac_dia_tools.pipeline.utils import manage_directories
 
 
 
-def create_report(df, path, params):
+def create_report(df, path, params, method, pulse_channel):
     # Construct the description string
     params_str = "\n".join([f"{key} {item['op']} {item['value']}" for key, item in params['apply_strict_filters'].items()])
     description = f"Parameters used:\n{params_str}"
@@ -28,15 +28,6 @@ def create_report(df, path, params):
     manage_directories.create_directory(path,'reports')
     output_dir = path + '/reports'
     pdf_path = os.path.join(output_dir, 'silac_precursors_report.pdf')
-    
-    # # Construct the description string
-    # # Load filtering parameters from JSON
-    # CONFIG_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'configs')
-    # json_path = os.path.join(CONFIG_DIR, 'filtering_parameters.json')
-    # with open(json_path, 'r') as f:
-    #     params = json.load(f)
-    # params_str = "\n".join([f"{key} {item['op']} {item['value']}" for key, item in params['apply_strict_filters'].items()])
-    # description = f"Parameters used:\n{params_str}"
     
     df_grouped = df.groupby('Run')
     
@@ -70,12 +61,27 @@ def create_report(df, path, params):
         runs = df_grouped.groups.keys()
 
         # For each run, plot the histograms and save to PDF
-        for run in runs:
-            plot_histograms_for_run(run, df_grouped, ['Precursor.Translated H', 'Precursor.Translated M', 'Precursor.Translated L'])
+        if method == 'dynamic_dia_sis':
+            for run in runs:
+                plot_histograms_for_run(run, df_grouped, ['Precursor.Translated H', 'Precursor.Translated M', 'Precursor.Translated L'])
+                
+                pdf.savefig()  # Saves the current figure into the PDF
+                plt.close()
+        elif method == 'dia_sis':
+            for run in runs:
+                plot_histograms_for_run(run, df_grouped, ['Precursor.Translated H', 'Precursor.Translated L'])
+                
+                # )
+                pdf.savefig()  # Saves the current figure into the PDF
+                plt.close()
+        else:
+            for run in runs:
+                plot_histograms_for_run(run, df_grouped, [f'Precursor.Translated {pulse_channel}', 'Precursor.Translated L'])
+                
+                # )
+                pdf.savefig()  # Saves the current figure into the PDF
+                plt.close()
             
-            # )
-            pdf.savefig()  # Saves the current figure into the PDF
-            plt.close()
              
 def plot_histograms_for_run(run, df_grouped, labels):
     """Plot histograms for a given run from multiple dataframes."""
