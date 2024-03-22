@@ -290,6 +290,10 @@ class DiaSis:
         # Obtain normalized light intensities by adding the L/H ratio to the heavy refference in log space
         merged_df['L_norm'] = merged_df['L/H ratio'] + merged_df['href']
         
+        # reverse log intensities
+        merged_df['L_norm'] = 10** merged_df['L_norm']
+        merged_df['href'] = 10** merged_df['href']
+
         return merged_df
     
     
@@ -429,8 +433,8 @@ class DynamicSilac:
         merged_df = df.merge(dlfq, on=['Protein.Group','Run'], how='inner')
         
         # Use ratios to calculate intensiteis
-        merged_df[f'{self.pulse_channel}_norm'] =  merged_df['Intensity'] / (merged_df[f'{self.pulse_channel}/L ratio' ] + 1)
-        merged_df['L_norm'] = merged_df[f'{self.pulse_channel}/L ratio'] *  merged_df[f'{self.pulse_channel}_norm']
+        merged_df['L_norm'] =  merged_df['Intensity'] / (merged_df[f'{self.pulse_channel}/L ratio' ] + 1)
+        merged_df[f'{self.pulse_channel}_norm'] = merged_df[f'{self.pulse_channel}/L ratio'] *  merged_df['L_norm']
      
         return merged_df
     
