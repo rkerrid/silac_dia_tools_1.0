@@ -37,11 +37,16 @@ class DynamicDiaSis:
         # Calculate protein level ratios
         self.protein_groups = self.compute_protein_level(self.formatted_precursors)
         
+        # Calculate non normalized
+        self.non_normalized = self.calculate_nonnormalized_intensities(self.protein_groups)
+        
         # Merge href with protein groups to generate normalized intensities         
         self.protein_groups = self.href_normalization(self.protein_groups, self.href_df)
         
-        # Format and output protein groups for light, NSP, and href dfs
+        # Format and output protein groups for unnormalized light, NSP, and href dfs
         self.output_protein_groups(self.protein_groups, self.path)
+        
+        self.output_unnormalized_protein_groups(self.non_normalized, self.path)
         
         end_time = time.time()
         print(f"Time taken to generate protein groups: {end_time - start_time} seconds")
@@ -97,6 +102,7 @@ class DynamicDiaSis:
             'href': combined_median(x['Ms1.Translated H'], x['Precursor.Translated H']) 
         })).reset_index()
        
+        
         return grouped[['Protein.Group', 'href']]
     
     def compute_protein_level(self, df):
@@ -118,6 +124,7 @@ class DynamicDiaSis:
              
             # Group by protein group and apply the custom aggregation
             grouped = run_df.groupby(['Protein.Group']).apply(lambda x: pd.Series({
+                'H': combined_median(x['Ms1.Translated H'], x['Precursor.Translated H']),
                 'L/H ratio': combined_median(x['Ms1.Translated L/H'], x['Precursor.Translated L/H']),
                 'M/H ratio': combined_median(x['Ms1.Translated M/H'], x['Precursor.Translated M/H'])})).reset_index()
             
@@ -126,7 +133,7 @@ class DynamicDiaSis:
     
         result = pd.concat(runs_list, ignore_index=True)
 
-        cols = ['Run','Protein.Group', 'L/H ratio', 'M/H ratio']
+        cols = ['Run','Protein.Group', 'L/H ratio', 'M/H ratio', 'H']
     
         # Returning the dataframe with specified columns
         return result[cols]   
@@ -147,10 +154,26 @@ class DynamicDiaSis:
         merged_df['href'] = 10**merged_df['href']
         return merged_df
     
+    # Adjust unnormalized intensities
+    def calculate_nonnormalized_intensities(self, protein_groups):
+        print('Calculating adjusted intensities using reference')
+        protein_groups = protein_groups.copy(deep=True)
+        # Obtain normalized light intensities by adding the L/H ratio to the heavy refference in log space
+        protein_groups['L_norm'] = protein_groups['L/H ratio'] + protein_groups['H']
+        protein_groups['M_norm'] = protein_groups['M/H ratio'] + protein_groups['H']
+        
+        # reverse log data to output protein intensities
+        protein_groups['L_norm'] = 10**protein_groups['L_norm'] 
+        protein_groups['M_norm'] = 10**protein_groups['M_norm']
+        protein_groups['href'] = 10**protein_groups['H']
+        return protein_groups
+    
+    
     def output_protein_groups(self, df, path):
         manage_directories.create_directory(self.path, 'protein_groups')
         print(f'Outputing normalized protein intensities to {path}/protein_groups')
         cols = ['Run', 'Protein.Group', 'href', 'M_norm', 'L_norm']
+        
         df = df[cols]
         df = df.rename(columns={'href': 'H', 'M_norm': 'M', 'L_norm': 'L'})
 
@@ -169,7 +192,33 @@ class DynamicDiaSis:
         l_pivot_df.to_csv(f'{path}/protein_groups/light.csv', sep=',')
 
         return h_pivot_df, m_pivot_df, l_pivot_df
+    
+    def output_unnormalized_protein_groups(self, df, path):
+        manage_directories.create_directory(self.path, 'protein_groups')
+        print(f'Outputing normalized protein intensities to {path}/protein_groups')
+        cols = ['Run', 'Protein.Group', 'href', 'M_norm', 'L_norm']
+        
+        
+        df = df[cols]
+        df = df.rename(columns={'href': 'H', 'M_norm': 'M', 'L_norm': 'L'})
 
+        # Pivoting for 'H'
+        h_pivot_df = df.pivot(index='Protein.Group', columns='Run', values='H')
+        
+        # Pivoting for 'M'
+        m_pivot_df = df.pivot(index='Protein.Group', columns='Run', values='M')
+        
+        # Pivoting for 'L'
+        l_pivot_df = df.pivot(index='Protein.Group', columns='Run', values='L')
+        
+        # then output each table to csv for h.href, l.href, m.href
+        h_pivot_df.to_csv(f'{path}/protein_groups/href_unnorm.csv', sep=',')
+        m_pivot_df.to_csv(f'{path}/protein_groups/nsp_unnorm.csv', sep=',')
+        l_pivot_df.to_csv(f'{path}/protein_groups/light_unnorm.csv', sep=',')
+
+        return h_pivot_df, m_pivot_df, l_pivot_df
+    
+   
 
 
 class DiaSis:
@@ -452,8 +501,8 @@ class DynamicSilac:
         l_pivot_df = df.pivot(index='Protein.Group', columns='Run', values='L')
         
         # then output each table to csv for nsp and light proteomes
-        m_pivot_df.to_csv(f'{path}/protein_groups/nsp.csv', sep=',')
-        l_pivot_df.to_csv(f'{path}/protein_groups/light.csv', sep=',')
+        m_pivot_df.to_csv(f'{path}/protein_groups/nsp_lfq.csv', sep=',')
+        l_pivot_df.to_csv(f'{path}/protein_groups/light_lfq.csv', sep=',')
 
     
         return  m_pivot_df, l_pivot_df
