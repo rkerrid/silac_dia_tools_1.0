@@ -99,7 +99,7 @@ class Pipeline:
             self.precursor_rollup = DynamicDiaSis(self.path, self.filtered_report)
         elif self.method == 'dynamic_silac':
             self.precursor_rollup = DynamicSilac(self.path, self.filtered_report, self.pulse_channel)
-            self.generate_report = False
+            # self.generate_report = False
             
         else:
             print('incorrect method')            

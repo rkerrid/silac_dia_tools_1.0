@@ -36,8 +36,8 @@ def create_report(path, params, method):
         }
     elif method == 'dynamic_silac':
         file_paths = {
-            'newly_synthesized_proteom': f'{path}/protein_groups/nsp.csv',
-            'light_proteome': f'{path}/protein_groups/light.csv'
+            'newly_synthesized_proteom': f'{path}/protein_groups/nsp_lfq.csv',
+            'light_proteome': f'{path}/protein_groups/light_lfq.csv'
         }
     else:
         file_paths = {

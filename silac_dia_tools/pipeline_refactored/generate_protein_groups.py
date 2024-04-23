@@ -423,6 +423,7 @@ class DynamicSilac:
         return df
     
     def compute_protein_level_ratios(self, df):
+        ic(df)
         print('Rolling up to protein level')
         runs = df['Run'].unique()
         runs_list = []
@@ -445,8 +446,12 @@ class DynamicSilac:
             # Group by protein group and apply the custom aggregation
             grouped = run_df.groupby(['Protein.Group']).apply(lambda x: pd.Series({
                 f'{self.pulse_channel}/L ratio': combined_median(x[f'Ms1.Translated {self.pulse_channel}/L'], x[f'Precursor.Translated {self.pulse_channel}/L'])
-            })).reset_index()
-            
+            })).reset_index(drop=True)
+            grouped['Protein.Group'] = run_df['Protein.Group'].unique()  # Manually assign if needed
+
+            # ic(grouped)
+          
+
             grouped['Run'] = run
             runs_list.append(grouped)
     

@@ -39,10 +39,11 @@ if __name__ == "__main__":
     # path = 'G:/My Drive/Data/data/20240306 eIF 5 lines/3d G3 G2/'
     path = 'G:/My Drive/Data/data/20240306 eIF 5 lines/G1 E/'
 
-    # path = 'G:/My Drive/Data/data/240112 poc4 test/20240314 adapted pipeline/N/'
+    path = 'G:/My Drive/Data/data/240112 poc4 test/20240314 adapted pipeline/N/'
     # path = 'G:/My Drive/Data/data/20240322 jose 24 48 hour neurons/'
     # path = 'G:/My Drive/Data/main experiments/20240219 baby benchmark for pydia_sis/'
-    pipeline = pileline( f'{path}', 'test_params.json', contains_reference = True, method = 'dynamic_dia_sis', pulse_channel="M", meta='meta.csv')
+    path = 'G:/My Drive/Data/data/jose/'
+    pipeline = pileline( f'{path}', 'test_params.json', contains_reference = True, method = 'dynamic_silac', pulse_channel="H", meta='meta.csv')
 
     # pipeline.make_metadata()
 
