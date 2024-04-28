@@ -61,15 +61,15 @@ class Preprocessor:
                 # annotate df with SILAC chanel then apply strict filters to H by droping the precursor, or adding NaN for L and M channels if they dont pass loose filters
                 if self.method =='dynamic_dia_sis':
                     chunk, chunk_filtered_out = self.filter_channel(chunk, "H") 
-                    chunk, chunk_light_filtered_out = self.filter_channel(chunk,"L")
-                    chunk, chunk_medium_filtered_out = self.filter_channel(chunk,"M")
+                    # chunk, chunk_light_filtered_out = self.filter_channel(chunk,"L")
+                    # chunk, chunk_medium_filtered_out = self.filter_channel(chunk,"M")
                 elif self.method == 'dia_sis':
                     chunk, chunk_filtered_out = self.filter_channel(chunk, "H") 
                     chunk, chunk_light_filtered_out = self.filter_channel(chunk,"L")
                 else:
                 # If the data contains no H refference, apply strict filtering to the L channel and loose filterings to the H or M channel that was used for the pulse
                     chunk, chunk_filtered_out = self.filter_channel(chunk, "L")
-                    chunk, chunk_pulse_channel_filtered_out = self.filter_channel(chunk, self.pulse_channel)
+                    # chunk, chunk_pulse_channel_filtered_out = self.filter_channel(chunk, self.pulse_channel)
                 
                 contam_chunk = self.identify_contaminants(chunk)
                 
