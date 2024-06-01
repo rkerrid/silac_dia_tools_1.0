@@ -1,139 +1,105 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Sep 18 11:43:50 2023
+Created on Sun Jan 14 18:27:52 2024
 
-@author: rkerrid
-
-Step 1: Module for filtering report.tsv output (DIA-NN version 1.8.1) with
-SILAC settings as described in the README.md
-
-Note: This script filters for contaminants by looking for the 'cont_' substring
-in Protein.Groups so make sure your report.tsv is annotated in the same way or 
-edit the remove_contaminants() funciton.
-
+@author: robbi
 """
 
 import pandas as pd
-import json
-import os
+import numpy as np
 import operator
+import time 
 
+from tqdm import tqdm
+import os
 from icecream import ic
-ic.disable()
-
 
 class Preprocessor:
-    def __init__(self, path, params, meta_data=None):
+    def __init__(self, path, params, filter_cols, contains_reference, pulse_channel,  method, meta_data=None):
         self.path = path
         self.meta_data = meta_data
-        self.contains_metadata = False
-        if self.meta_data is not None:
-            self.contains_metadata = True
         self.params = params
-        self.filter_cols = self.params['apply_filters'].keys()
-        self.chunk_size = 10000
+        self.chunk_size = 180000
         self.update = True
+        self.filter_cols = filter_cols 
+        self.contains_reference = contains_reference
+        self.pulse_channel = pulse_channel
+        self.method = method
         
     def import_report(self):
-        print('Beggining import no filter')
-        
+        print('Beginning import report.tsv')
+        start_time = time.time()
+                
+        chunks = []
+        filtered_out = []
+        contaminants = []
+        file_path = f"{self.path}report.tsv"
         count = 1
-        with open(f"{self.path}report.tsv", 'r', encoding='utf-8') as file:
-            chunks = []
-    
-            for chunk in pd.read_table(file,sep="\t", chunksize=self.chunk_size):
-                chunk = self.subset_import(chunk)
+        # Estimate rows in file size
+        file_size_bytes = os.path.getsize(file_path)
+        average_row_size_bytes = 1000  # This is an example; you'll need to adjust this based on your data
+        # Estimate the number of rows
+        estimated_rows = file_size_bytes / average_row_size_bytes
+        total_chunks = estimated_rows/self.chunk_size
+        for chunk in tqdm(pd.read_table(file_path, sep="\t", chunksize=self.chunk_size), 
+                      total=total_chunks, desc='Estimated loading of report.tsv based on file size'):
+                # reduce data size by subsetting report.tsv based on metadata, and removing columns not needed for further analysis
+                # in the following loop we also annotate the silac chanels and append genes to Protein.Groups for downstream useage
+                pd.options.mode.chained_assignment = None  # Turn off SettingWithCopyWarning since adaptions are being made to original df during import
+                
+                if self.meta_data is not None:
+                    chunk = self.subset_based_on_metadata(chunk)
+                    chunk = self.relabel_run(chunk)
+                
                 chunk['Genes'] = chunk['Genes'].fillna('')
                 chunk['Protein.Group'] = chunk['Protein.Group'].str.cat(chunk['Genes'], sep='-')
-                chunks.append(chunk)
+                chunk['Label'] = ""
+                chunk = self.add_label_col(chunk)
+                # chunk = self.drop_non_valid_h_rows(chunk) probably dont need this func because filtering will remove these rows
+                chunk = self.remove_cols(chunk)
                 
-                # Update progress (optional)
-                if self.update:
-                    print('chunk ', count,' processed')
-                count+=1
+                # annotate df with SILAC chanel then apply strict filters to H by droping the precursor, or adding NaN for L and M channels if they dont pass loose filters
+                if self.method =='dynamic_dia_sis':
+                    chunk, chunk_filtered_out = self.filter_channel(chunk, "H") 
+                    # chunk, chunk_light_filtered_out = self.filter_channel(chunk,"L")
+                    # chunk, chunk_medium_filtered_out = self.filter_channel(chunk,"M")
+                elif self.method == 'dia_sis':
+                    chunk, chunk_filtered_out = self.filter_channel(chunk, "H") 
+                    chunk, chunk_light_filtered_out = self.filter_channel(chunk,"L")
+                else:
+                # If the data contains no H refference, apply strict filtering to the L channel and loose filterings to the H or M channel that was used for the pulse
+                    chunk, chunk_filtered_out = self.filter_channel(chunk, "L")
+                    # chunk, chunk_pulse_channel_filtered_out = self.filter_channel(chunk, self.pulse_channel)
+                
+                contam_chunk = self.identify_contaminants(chunk)
+                
+                #remove filter cols before concatinating all dfs and returning
+                chunk.drop(self.filter_cols, axis=1, inplace=True)
+                chunks.append(chunk)
+                filtered_out.append(chunk_filtered_out)
+                contaminants.append(contam_chunk)
+                
+                
+                # if self.update:
+                #     print(f'Chunk {count} processed')
+                # if count == 1:
+                #     break
             
-            # Concatenate all chunks into a DataFrames
-  
-            df = pd.concat(chunks, ignore_index=True)
-            print('Finished import')
-        return df
-    
-    #remove samples not in the metadata from the report.tsv
-    def subset_import(self, chunk):
-        
-        chunk = chunk[chunk['Run'].isin(self.meta_data['Run'])]
-        
-        return chunk
-    
-    def drop_non_meta_samples(self, chunk, meta):
-        filtered_chunk = chunk[chunk['Run'].isin(meta['Run'])]
+        # append chunks to respective dfs and return  
+        df = pd.concat(chunks, ignore_index=True)
+        filtered_out_df = pd.concat(filtered_out, ignore_index=True)
+        contaminants_df = pd.concat(contaminants, ignore_index=True)
+        print('Finished import')
+        end_time = time.time()
+        print(f"Time taken for import: {end_time - start_time} seconds")
+        return df, filtered_out_df, contaminants_df
+
+
+    def subset_based_on_metadata(self, chunk):       
+        filtered_chunk = chunk[chunk['Run'].isin(self.meta_data['Run'])]
         return filtered_chunk
-        
     
-    def filter_formatted(self, formatted_precursors):
-        print('Begin filtering formatted precursors')
-        if self.contains_metadata:
-            precursors = self.relable_run(formatted_precursors)
-        precursors, contam = self.remove_contaminants(precursors)
-        precursors, filtered_out = self.apply_filters(precursors)
-     
-        return precursors, contam, filtered_out
-    
-    #Filtering
-    def remove_contaminants(self, chunk): # is self needed?
-        # Create a contaminants mask based on the cont_ string and make sure all values are boolean
-        contams_mask = chunk['Protein.Group'].str.contains('Cont_', case=False, na=False)
-        if not all(isinstance(x, bool) for x in contams_mask):
-            print("contams_mask contains non-boolean values:", contams_mask[~contams_mask.isin([True, False])])
-        
-        contams_df = chunk[contams_mask]  # Dataframe with only contaminants
-        cleaned_chunk = chunk[~contams_mask]  # Dataframe without contaminants
-        return cleaned_chunk, contams_df
-        
-    def apply_filters(self, chunk):
-        # Initialize operator dict
-        ops = {
-            "==": operator.eq,
-            "<": operator.lt,
-            "<=": operator.le,
-            ">": operator.gt,
-            ">=": operator.ge
-        }
-
-         # Create a boolean Series with all True values and explicitly set its index
-        filtering_condition = pd.Series([True] * len(chunk), index=chunk.index)
-        
-        # Iterating over each filter condition in params['apply_filters']
-        for column, condition in self.params['apply_filters'].items():
-            op = ops[condition['op']]
-            value = condition['value']
-            
-            # Updating filtering_condition by applying each condition
-            filtering_condition &= op(chunk[column], value)
-
-        # Filter chunk and return both filtered and filtered out dfs
-        chunk_filtered = chunk[filtering_condition]
-        chunk_filtered_out = chunk[~filtering_condition]
-
-        return chunk_filtered, chunk_filtered_out
-
-    def  drop_cols(self, chunk, filter_cols = []): # is self needed?
-        chunk['Genes'] = chunk['Genes'].fillna('')
-        chunk['Protein.Group'] = chunk['Protein.Group'].str.cat(chunk['Genes'], sep='-')
-        cols_to_keep = [ 'Run',
-                          'Protein.Group',
-                          'Stripped.Sequence',
-                          'Precursor.Id', 
-                          'Precursor.Charge',
-            
-                          'Precursor.Quantity',
-                          'Precursor.Translated',
-                          'Ms1.Translated'
-                          ] + filter_cols
-        chunk = chunk[cols_to_keep]
-        return chunk
-    
-    def relable_run(self, chunk):
+    def relabel_run(self, chunk):
         run_to_sample = dict(zip(self.meta_data['Run'], self.meta_data['Sample']))
 
         # Apply the mapping to df2['Run'] and raise an error if a 'Run' value doesn't exist in df1
@@ -142,4 +108,82 @@ class Preprocessor:
             raise ValueError("Some Run values in the report.tsv are not found in the metadata, please ensure metadata is correct.")
             
         return chunk
- 
+
+    def add_label_col(self, chunk):
+        # Extract the label and add it as a new column
+        chunk['Label'] = chunk['Precursor.Id'].str.extract(r'\(SILAC-(K|R)-([HML])\)')[1]
+    
+        # Remove the '(SILAC-K|R-([HML]))' part from the 'Precursor.Id' string
+        chunk['Precursor.Id'] = chunk['Precursor.Id'].str.replace(r'\(SILAC-(K|R)-[HML]\)', '', regex=True)
+    
+        return chunk
+
+    def remove_cols(self, chunk):
+        cols = ['Run', 'Protein.Group', 'Precursor.Id', 'Label',  'Precursor.Quantity','Ms1.Translated','Precursor.Translated'] + self.filter_cols 
+        chunk = chunk[cols]
+        return chunk
+
+    def filter_channel(self, chunk, label):
+        ops = {
+            "==": operator.eq, "<": operator.lt, "<=": operator.le,
+            ">": operator.gt, ">=": operator.ge
+        }
+    
+        # Check if 'H' labeled rows are present
+        if label in chunk['Label'].values:
+            # Start with a mask that selects all chanel rows
+            h_rows_mask = chunk['Label'] == label
+    
+            for column, condition in self.params['apply_loose_filters'].items():
+                op = ops[condition['op']]
+                # Update the mask to keep chanel rows that meet the condition
+                h_rows_mask &= op(chunk[column], condition['value'])
+    
+            # Filter out chanel rows that do not meet all conditions
+            filtered_chunk = chunk[h_rows_mask | (chunk['Label'] != label)]
+            chunk_filtered_out = chunk[~h_rows_mask & (chunk['Label'] == label)]
+        else:
+            # If the label is not present, return the whole chunk and an empty 'filtered' chunk
+            filtered_chunk = chunk
+            chunk_filtered_out = pd.DataFrame(columns=chunk.columns)
+    
+        return filtered_chunk, chunk_filtered_out
+
+    def apply_nan_by_loose_filtering(self, chunk, label):
+        # Create boolean mask for length of chunk
+        filtering_condition = pd.Series([True] * len(chunk), index=chunk.index)
+        ops = {
+            "==": operator.eq, "<": operator.lt, "<=": operator.le,
+            ">": operator.gt, ">=": operator.ge
+        }
+        filtered_chunk = chunk.copy()
+    
+        if label in chunk['Label'].values:
+            for column, condition in self.params['apply_loose_filters'].items():
+                op = ops[condition['op']]
+                # Update the condition for each column if any of the filtering criterea don't pass
+                filtering_condition &= op(chunk[column], condition['value'])
+    
+            nan_cols = ['Precursor.Translated', 'Precursor.Quantity', 'Ms1.Translated']
+            for col in nan_cols:
+                if col in chunk.columns:
+                    # Set NaN where the condition is False
+                    filtered_chunk.loc[~filtering_condition, col] = np.nan
+    
+        return filtered_chunk
+
+    def identify_contaminants(self, chunk):
+         chunk_copy = chunk.copy(deep=True)
+         contams_mask = chunk_copy['Protein.Group'].str.contains('Cont_', case=False, na=False)
+         self._validate_boolean_mask(contams_mask)
+              
+         contaminants = chunk_copy[contams_mask]
+         return contaminants
+    
+    def _validate_boolean_mask(self, mask):
+        if not all(isinstance(x, bool) for x in mask):
+            invalid_values = mask[~mask.isin([True, False])]
+            print(f"Non-boolean values in mask: {invalid_values}")
+            
+            
+   
