@@ -17,8 +17,8 @@ from icecream import ic
 from .utils import manage_directories
 from .report import filtering_report, precursor_report, protein_group_report, protein_intensities_report, protein_groups_report_r
 
-from silac_dia_tools.pipeline_refactored.preprocessor import Preprocessor 
-from silac_dia_tools.pipeline_refactored.generate_protein_groups import DiaSis, DynamicDiaSis, DynamicSilac
+from silac_dia_tools.pipeline.preprocessor import Preprocessor 
+from silac_dia_tools.pipeline.generate_protein_groups_fix import DiaSis, DynamicDiaSis, DynamicSilac
 
 
 class Pipeline:
@@ -103,9 +103,9 @@ class Pipeline:
             
         else:
             print('incorrect method')            
-        self.formatted_precursors, self.protein_groups = self.precursor_rollup.generate_protein_groups()
+        self.precursor_rollup.generate_protein_groups()
         
-        self._save_preprocessing()
+        # self._save_preprocessing()
         
         if generate_report:
             self._generate_reports() 
