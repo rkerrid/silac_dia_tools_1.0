@@ -73,21 +73,14 @@ class Pipeline:
         self.contaminants.to_csv(os.path.join(self.path, 'preprocessing', 'contaminants.tsv'), sep='\t')
         self.filtered_out_df.to_csv(os.path.join(self.path, 'preprocessing', 'filtered_out.tsv'), sep='\t')
         self.filtered_report.to_csv(os.path.join(self.path, 'preprocessing', 'filtered_report.tsv'), sep='\t')
-        
-        # self.LH_df.to_csv(os.path.join(self.path, 'preprocessing', 'light_precursors.tsv'), sep='\t')
-        # self.MH_df.to_csv(os.path.join(self.path, 'preprocessing', 'medium_precusors.tsv'), sep='\t')
-        # self.href_df.to_csv(os.path.join(self.path, 'preprocessing', 'href.tsv'), sep='\t')
-        
-    
+   
     def _generate_reports(self):
         # Generate reports for filtering, precursors, and protein groups
         manage_directories.create_directory(self.path, 'reports')
+        
         filtering_report.create_report(self.filtered_report, self.contaminants, self.filtered_out_df, self.path, self.params)
         protein_overview_report.create_report(self.path)
-        # precursor_report.create_report(self.formatted_precursors, self.path, self.params, self.method, self.pulse_channel)
-        # protein_group_report.create_report(self.protein_groups, self.path, self.params)
-        # protein_groups_report_r.create_report(self.path, self.params, self.method)
-        print('passsing generate reports steps')
+        
         
     def execute_pipeline(self, generate_report=True):
         self.preprocessor = Preprocessor(self.path, self.params, self.filter_cols, self.contains_reference, self.pulse_channel, self.method, self.meta_data)
