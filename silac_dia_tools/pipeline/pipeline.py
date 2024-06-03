@@ -15,7 +15,7 @@ import dask.dataframe as dd
 from icecream import ic
 
 from .utils import manage_directories
-from .report import filtering_report, precursor_report, protein_group_report, protein_intensities_report, protein_groups_report_r
+from .report import filtering_report, protein_overview_report
 
 from silac_dia_tools.pipeline.preprocessor import Preprocessor 
 from silac_dia_tools.pipeline.generate_protein_groups_fix import DiaSis, DynamicDiaSis, DynamicSilac
@@ -38,14 +38,9 @@ class Pipeline:
         self.filter_cols = list(self.params['filter_cols'].keys())
        
         # Placeholder variables 
-        self.precursor_rollup = None
-        
         self.filtered_report = None
         self.contaminants = None
         self.filtered_out_df = None
-        
-        self.formatted_precursors = None
-        self.protein_groups = None
         
     def _load_params(self):
         json_path = os.path.join(os.path.dirname(__file__), '..', 'configs', self.parameter_file)
@@ -78,16 +73,21 @@ class Pipeline:
         self.contaminants.to_csv(os.path.join(self.path, 'preprocessing', 'contaminants.tsv'), sep='\t')
         self.filtered_out_df.to_csv(os.path.join(self.path, 'preprocessing', 'filtered_out.tsv'), sep='\t')
         self.filtered_report.to_csv(os.path.join(self.path, 'preprocessing', 'filtered_report.tsv'), sep='\t')
-        self.formatted_precursors.to_csv(os.path.join(self.path, 'preprocessing', 'formatted_precursors.tsv'), sep='\t')
-        self.protein_groups.to_csv(os.path.join(self.path, 'preprocessing', 'protein_groups.csv'), sep=',')
+        
+        # self.LH_df.to_csv(os.path.join(self.path, 'preprocessing', 'light_precursors.tsv'), sep='\t')
+        # self.MH_df.to_csv(os.path.join(self.path, 'preprocessing', 'medium_precusors.tsv'), sep='\t')
+        # self.href_df.to_csv(os.path.join(self.path, 'preprocessing', 'href.tsv'), sep='\t')
+        
     
     def _generate_reports(self):
         # Generate reports for filtering, precursors, and protein groups
+        manage_directories.create_directory(self.path, 'reports')
         filtering_report.create_report(self.filtered_report, self.contaminants, self.filtered_out_df, self.path, self.params)
-        precursor_report.create_report(self.formatted_precursors, self.path, self.params, self.method, self.pulse_channel)
+        protein_overview_report.create_report(self.path)
+        # precursor_report.create_report(self.formatted_precursors, self.path, self.params, self.method, self.pulse_channel)
         # protein_group_report.create_report(self.protein_groups, self.path, self.params)
-        
-        protein_groups_report_r.create_report(self.path, self.params, self.method)
+        # protein_groups_report_r.create_report(self.path, self.params, self.method)
+        print('passsing generate reports steps')
         
     def execute_pipeline(self, generate_report=True):
         self.preprocessor = Preprocessor(self.path, self.params, self.filter_cols, self.contains_reference, self.pulse_channel, self.method, self.meta_data)
@@ -105,7 +105,7 @@ class Pipeline:
             print('incorrect method')            
         self.precursor_rollup.generate_protein_groups()
         
-        # self._save_preprocessing()
+        self._save_preprocessing()
         
         if generate_report:
             self._generate_reports() 
