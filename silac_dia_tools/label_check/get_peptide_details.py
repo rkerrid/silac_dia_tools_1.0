@@ -39,20 +39,6 @@ def get_most_abundant_krp_peptide(msms, evidence):
 
     return peptides #list of peptide details
 
-# Extract peptide details
-def get_peptide_details(peptide, evidence):
-    full_scan_number = peptide["Precursor_full_scan_number"]
-    evidence_id = peptide['Evidence_ID']
-    labeling_state = peptide['Labeling_state']
-    
-    peptide_details = evidence[evidence["id"] == evidence_id][['Raw_file','Sequence', 'm/z', 'Charge', 'Retention_time']]    
-    peptide_details['scan_number'] = full_scan_number
-    peptide_details["labeling_state"] = labeling_state
-    
-    sequence = peptide_details["Sequence"].values[0] 
-    peptide_details["AA_mass"] = get_AA_mass(sequence)
-    
-    return peptide_details  
 
 def get_AA_mass(sequence):
     if "K" in sequence:
@@ -71,14 +57,46 @@ def get_most_abundant_heavy(msms, evidence):
     return peptide
     
 
+def get_protein_precursors(poi, protein_groups, msms, evidence):
+    #check that protein is in df and filter pg groups for peptide ids 
+    contains_gene = protein_groups['Protein IDs'].str.contains(poi)
+    filtered_proteins = protein_groups[contains_gene]
+    
+    peptide_ids = filtered_proteins['Peptide IDs']
+    peptide_ids = peptide_ids.values.tolist()
+    peptide_ids = peptide_ids[0].split(';')
+    print('code adjusted')
+
+    # get msms details
+    msms_details = ''
+    peptides = []
+    for peptide_id in peptide_ids:
+        msms_details = msms[msms['Peptide_ID']==int(peptide_id)]
+        msms_sorted = msms_details.sort_values(by='Precursor_Intensity', ascending=False)
+        top_precursor = msms_sorted.iloc[0]
+        peptides.append(top_precursor)
+    
+    peptide_details = []
+    # loop through peptides and get peptide details for each one
+    for peptide in peptides:
+        peptide_details.append(get_peptide_details(peptide, evidence))
+    return peptide_details
 
 
-
-
-
-
-
-
+# Extract peptide details
+def get_peptide_details(peptide, evidence):
+    full_scan_number = peptide["Precursor_full_scan_number"]
+    evidence_id = peptide['Evidence_ID']
+    labeling_state = peptide['Labeling_state']
+    
+    peptide_details = evidence[evidence["id"] == evidence_id][['Raw_file','Sequence', 'm/z', 'Charge', 'Retention_time']]    
+    peptide_details['scan_number'] = full_scan_number
+    peptide_details["labeling_state"] = labeling_state
+    
+    sequence = peptide_details["Sequence"].values[0] 
+    peptide_details["AA_mass"] = get_AA_mass(sequence)
+    
+    return peptide_details  
 
 
 
