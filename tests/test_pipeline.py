@@ -6,8 +6,7 @@ import pandas as pd
 if __name__ == "__main__": 
    
     
-    path = 'G:/My Drive/Data/data/20240530 modifying triple silac/'
-    path = 'G:/My Drive/Data/data/20240604 POC 6/'
+    path = 'G:/My Drive/Data/data/20240624 starvation pilot/'
     
     pipeline = pipeline( f'{path}', 'test_params.json', contains_reference = True, method = 'dynamic_dia_sis', pulse_channel="M", meta='meta.csv')
 
