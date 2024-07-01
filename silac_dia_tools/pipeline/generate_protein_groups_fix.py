@@ -43,6 +43,10 @@ class DynamicDiaSis:
         # oputput data
         self.output_protein_groups( LH_protein_df, MH_protein_df, href_df, self.path)
         
+        # save formatted precursors to csv file
+        LH_df.to_csv(f'{self.path}formatted_precursors_L.csv', sep=',')
+        MH_df.to_csv(f'{self.path}formatted_precursors_M.csv', sep=',')
+
         end_time = time.time()
         print(f"Time taken to generate protein groups: {end_time - start_time} seconds")
         
