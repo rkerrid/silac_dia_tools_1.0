@@ -73,8 +73,11 @@ def scan_plot(mz_values, intensity_values, peptide_details, path):
     if labeling_state == 1:
         expected_heavy_peak = expected_heavy_peak + (AA_mass / charge)
 
-    expected_light_peak = expected_heavy_peak - (AA_mass / charge)
-
+        expected_light_peak = expected_heavy_peak - (AA_mass / charge)
+    else:
+        expected_light_peak = expected_heavy_peak
+        expected_heavy_peak = expected_heavy_peak + (AA_mass / charge)
+        
     plot_points_and_lines(mz_values, intensity_values, expected_light_peak, expected_heavy_peak)
     set_axes_limits(mz_values, intensity_values, expected_heavy_peak)
     # y_limit_half = (plt.ylim()[1] - plt.ylim()[0]) / 1.1
