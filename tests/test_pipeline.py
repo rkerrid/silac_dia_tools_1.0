@@ -7,7 +7,7 @@ if __name__ == "__main__":
    
     
     path = 'G:/My Drive/Data/data/20240624 starvation pilot/'
-    path = 'G:/My Drive/Data/analysis/240627 eIF3D inconsistencies/requantified/'
+    path = 'G:/My Drive/Data/main experiments/20240712 starvation pilot/'
     
     pipeline = pipeline( f'{path}', 'test_params.json', contains_reference = True, method = 'dynamic_dia_sis', pulse_channel="M", meta='meta.csv')
 

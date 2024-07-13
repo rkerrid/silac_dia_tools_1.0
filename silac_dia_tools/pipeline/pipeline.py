@@ -105,6 +105,18 @@ class Pipeline:
 
     def make_metadata(self):
         print("Searching report.tsv for unique runs for metadata, use pop up to enter metadata or copy and past selected runs to a spreadsheet and save as .csv file")
+        dtype = {
+            'Channel.Evidence.Ms1': 'float64', 'Channel.Evidence.Ms2': 'float64',
+            'Channel.L': 'float64', 'Channel.M': 'float64',
+            'Channel.Q.Value': 'float64', 'Mass.Evidence': 'float64',
+            'Ms1.Area': 'float64', 'Ms1.Profile.Corr': 'float64',
+            'Ms1.Translated': 'float64', 'Precursor.Normalised': 'float64',
+            'Precursor.Quantity': 'float64', 'Precursor.Translated': 'float64',
+            'Quantity.Quality': 'float64'
+        }
+        df = dd.read_csv(os.path.join(self.path, 'report.tsv'), sep='\t', dtype=dtype)
+        unique_runs = df['Run'].drop_duplicates().compute()
+        print(unique_runs)
         root = tk.Tk()
         app = TestApp(self.path, root)
         root.protocol("WM_DELETE_WINDOW", app.on_closing)

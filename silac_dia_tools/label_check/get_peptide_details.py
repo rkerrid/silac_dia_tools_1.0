@@ -21,7 +21,7 @@ def extract_values(ms1_df, peptide_details):
 
 ##Getting peptide details from MQ files
 # Locate the most abundant peptides containing R, K, and P
-def get_most_abundant_krp_peptide(msms, evidence):
+def get_most_abundant_krp_peptide(msms, evidence, channel):
     msms = msms[msms['Proteins'].notna()]
     df_sorted = msms.sort_values(by='Precursor_Intensity', ascending=False)
 
@@ -35,25 +35,32 @@ def get_most_abundant_krp_peptide(msms, evidence):
     for condition in conditions:
         sequence = df_sorted[condition].iloc[0]
         df_sorted = df_sorted[df_sorted['Sequence'] != sequence['Sequence']]
-        peptides.append(get_peptide_details(sequence, evidence))
+        peptides.append(get_peptide_details(sequence, evidence, channel))
 
     return peptides #list of peptide details
 
 
-def get_AA_mass(sequence):
-    if "K" in sequence:
-        return 8
-    elif "R" in sequence:
-        return 10
-    return 1
+def get_AA_mass(sequence, channel):
+    if channel == 'H':
+        if "K" in sequence:
+            return 8
+        elif "R" in sequence:
+            return 10
+        return 1
+    elif channel == 'M':
+        if "K" in sequence:
+            return 4
+        elif "R" in sequence:
+            return 6
+        return 1
 
 # Locate the most abundant heavy peptide
-def get_most_abundant_heavy(msms, evidence):
+def get_most_abundant_heavy(msms, evidence, channel):
     msms = msms[msms['Proteins'].notna()]
     msms = msms[msms["Labeling_state"]==1]
     df_sorted = msms.sort_values(by='Precursor_Intensity', ascending=False)
     largest_heavy = df_sorted.iloc[0]
-    peptide = get_peptide_details(largest_heavy, evidence)
+    peptide = get_peptide_details(largest_heavy, evidence, channel)
     return peptide
     
 
@@ -84,7 +91,7 @@ def get_protein_precursors(poi, protein_groups, msms, evidence):
 
 
 # Extract peptide details
-def get_peptide_details(peptide, evidence):
+def get_peptide_details(peptide, evidence, channel):
     full_scan_number = peptide["Precursor_full_scan_number"]
     evidence_id = peptide['Evidence_ID']
     labeling_state = peptide['Labeling_state']
@@ -94,7 +101,7 @@ def get_peptide_details(peptide, evidence):
     peptide_details["labeling_state"] = labeling_state
     
     sequence = peptide_details["Sequence"].values[0] 
-    peptide_details["AA_mass"] = get_AA_mass(sequence)
+    peptide_details["AA_mass"] = get_AA_mass(sequence, channel)
     
     return peptide_details  
 
