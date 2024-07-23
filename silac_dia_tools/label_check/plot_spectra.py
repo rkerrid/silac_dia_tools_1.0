@@ -65,18 +65,18 @@ def scan_plot(mz_values, intensity_values, peptide_details, path):
     sequence = peptide_details["Sequence"].values[0]
     retention_time = peptide_details["Retention_time"].values[0]
     charge = peptide_details["Charge"].values[0]
-    expected_heavy_peak = peptide_details["m/z"].values[0]
+    expected_peak = peptide_details["m/z"].values[0]
     labeling_state = peptide_details["labeling_state"].values[0]
     AA_mass = peptide_details["AA_mass"].values[0]
     scan_number = peptide_details["scan_number"].values[0]
     raw_file = peptide_details['Raw_file'].item()
     if labeling_state == 1:
-        expected_heavy_peak = expected_heavy_peak + (AA_mass / charge)
+        expected_heavy_peak = expected_peak + (AA_mass / charge)
 
         expected_light_peak = expected_heavy_peak - (AA_mass / charge)
     else:
-        expected_light_peak = expected_heavy_peak
-        expected_heavy_peak = expected_heavy_peak + (AA_mass / charge)
+        expected_light_peak = expected_peak
+        expected_heavy_peak = expected_peak + (AA_mass / charge)
         
     plot_points_and_lines(mz_values, intensity_values, expected_light_peak, expected_heavy_peak)
     set_axes_limits(mz_values, intensity_values, expected_heavy_peak)
