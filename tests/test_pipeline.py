@@ -8,6 +8,7 @@ if __name__ == "__main__":
     
     path = 'G:/My Drive/Data/data/20240624 starvation pilot/'
     path = 'G:/My Drive/Data/main experiments/20240712 starvation pilot/'
+    path = "G:/My Drive/Data/main experiments/20240712 triple SILAC BM/20240819 tripple BM/w spikein/"
     
     pipeline = pipeline( f'{path}', 'test_params.json', contains_reference = True, method = 'dynamic_dia_sis', pulse_channel="M", meta='meta.csv')
 
