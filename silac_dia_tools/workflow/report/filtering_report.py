@@ -11,7 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import warnings
-from silac_dia_tools.pipeline.utils import manage_directories
+from silac_dia_tools.workflow.utils import manage_directories
 
 
 def create_report(df, contams, filtered_out, path, params):

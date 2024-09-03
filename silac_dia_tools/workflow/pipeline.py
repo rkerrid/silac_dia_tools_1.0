@@ -17,18 +17,20 @@ from icecream import ic
 from .utils import manage_directories
 from .report import filtering_report, protein_overview_report
 
-from silac_dia_tools.pipeline.preprocessor import Preprocessor 
-from silac_dia_tools.pipeline.generate_protein_groups_fix import DiaSis, DynamicDiaSis, DynamicSilac
+from silac_dia_tools.workflow.preprocessor import Preprocessor 
+from silac_dia_tools.workflow.dynamic_dia_sis import DynamicDiaSis
+from silac_dia_tools.workflow.dia_sis import DiaSis  
+from silac_dia_tools.workflow.dynamic_silac_dia import DynamicSilac
+
 
 
 class Pipeline:
-    def __init__(self, path, parameter_file, contains_reference=True, method='dia_sis', pulse_channel="M", meta=None):
+    def __init__(self, path, parameter_file, method='dia_sis', pulse_channel="M", metadata_file=None): # check method input is valid otherwise print method options
         # Assign constructor variables
         self.path = path
         self.parameter_file = parameter_file
         self.pulse_channel = pulse_channel
-        self.meta = meta
-        self.contains_reference = contains_reference
+        self.metadata_file = metadata_file
         self.method = method
    
         # Initialize class variables
@@ -40,7 +42,7 @@ class Pipeline:
         # Placeholder variables 
         self.filtered_report = None
         self.contaminants = None
-        self.filtered_out_df = None
+        
         
     def _load_params(self):
         json_path = os.path.join(os.path.dirname(__file__), '..', 'configs', self.parameter_file)
@@ -48,25 +50,25 @@ class Pipeline:
             return json.load(file)
 
     def _confirm_metadata(self):
-        if self.meta is None:
+        if self.metadata_file is None:
             print("No metadata added, filtering will continue without relabeling")
             return False
-        if not isinstance(self.meta, str):
+        if not isinstance(self.metadata_file, str):
             print("File name is not a string, filtering will continue without relabeling")
             return False
-        print("Metadata added, looking for the following file:", self.meta)
+        print("Metadata added, looking for the following file:", self.metadata_file)
         return self._check_directory()
 
     def _check_directory(self):
         file_list = os.listdir(self.path)
-        if self.meta in file_list:
-            print(f"CSV file '{self.meta}' found in {self.path}")
+        if self.metadata_file in file_list:
+            print(f"CSV file '{self.metadata_file}' found in {self.path}")
             return True
-        print(f"CSV file '{self.meta}' not found in the directory.")
+        print(f"CSV file '{self.metadata_file}' not found in the directory.")
         return False
 
     def _load_meta_data(self):
-        return pd.read_csv(os.path.join(self.path, self.meta), sep=',')       
+        return pd.read_csv(os.path.join(self.path, self.metadata_file), sep=',')       
     
     def _save_preprocessing(self):
         manage_directories.create_directory(self.path, 'preprocessing')
@@ -83,25 +85,29 @@ class Pipeline:
         
         
     def execute_pipeline(self, generate_report=True):
-        self.preprocessor = Preprocessor(self.path, self.params, self.filter_cols, self.contains_reference, self.pulse_channel, self.method, self.meta_data)
-        self.filtered_report, self.filtered_out_df, self.contaminants = self.preprocessor.import_report()
+        self.preprocessor = Preprocessor(self.path, self.pulse_channel, self.method, self.meta_data)
+        self.filtered_report, self.contaminants = self.preprocessor.import_report()
         
+        self.filtered_report.to_csv(f'{self.path}filtered_report.csv', sep=',')
+        self.contaminants.to_csv(f'{self.path}contams.csv', sep=',')
+
+
         if self.method == 'dia_sis':
             self.precursor_rollup = DiaSis(self.path, self.filtered_report)
         elif self.method == 'dynamic_dia_sis':
             self.precursor_rollup = DynamicDiaSis(self.path, self.filtered_report)
-        elif self.method == 'dynamic_silac':
-            self.precursor_rollup = DynamicSilac(self.path, self.filtered_report, self.pulse_channel)
-            # self.generate_report = False
+        elif self.method == 'dynamic_silac_dia':
+            self.precursor_rollup = DynamicSilac(self.path, self.filtered_report)
+        
             
-        else:
-            print('incorrect method')            
-        self.precursor_rollup.generate_protein_groups()
+        # else:
+        #     print('incorrect method')            
+        result = self.precursor_rollup.generate_protein_groups()
+        return result
+        # self._save_preprocessing()
         
-        self._save_preprocessing()
-        
-        if generate_report:
-            self._generate_reports() 
+        # if generate_report:
+        #     self._generate_reports() 
 
     def make_metadata(self):
         print("Searching report.tsv for unique runs for metadata, use pop up to enter metadata or copy and past selected runs to a spreadsheet and save as .csv file")

@@ -12,7 +12,7 @@ from tqdm import tqdm
 from icecream import ic
 from .utils import manage_directories
 
-from silac_dia_tools.pipeline.utils import dlfq_functions as dlfq
+from silac_dia_tools.workflow.utils import dlfq_functions as dlfq
 
 
 class DynamicDiaSis:

@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 import os
-from silac_dia_tools.pipeline.utils import manage_directories
+from silac_dia_tools.workflow.utils import manage_directories
 
 
 def import_data(path):
