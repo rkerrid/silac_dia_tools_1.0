@@ -44,7 +44,7 @@ class DynamicSilac:
     
     def calculate_precursor_ratios(self, df):
         print('Calculating SILAC ratios based on Ms1.Translated and Precursor.Translated')
-     
+        df = df.copy()
         df.loc[:, 'Precursor.Quantity'] = df['precursor_quantity_L'].fillna(0) + df['precursor_quantity_pulse'].fillna(0)
         
         df.loc[:, 'precursor_translated_pulse/L'] = df['precursor_translated_pulse'] / df['precursor_translated_L'] 
@@ -88,7 +88,7 @@ class DynamicSilac:
                 return median_back_transformed
     
             # Group by protein group and apply the custom aggregation
-            grouped_run = run_df.groupby(['protein_group']).apply(lambda x: pd.Series({
+            grouped_run = run_df.groupby(['protein_group', 'genes','protein_names', 'protein_ids']).apply(lambda x: pd.Series({
                 'pulse/L': combined_median(x['ms1_translated_pulse/L'], x['precursor_translated_pulse/L'])
             })).reset_index()
     
@@ -99,9 +99,10 @@ class DynamicSilac:
         return result
 
     def perform_lfq(self, df):
+            manage_directories.create_directory(self.path, 'directLFQ_output')
             df = df[['Run', 'protein_group', 'precursor_id', 'Precursor.Quantity', 'Lib.PG.Q.Value']]
             df = df.rename(columns={'protein_group':'Protein.Group', 'precursor_id':'Precursor.Id'})
-            path = f'{self.path}'
+            path = f'{self.path}directLFQ_output/'
             df.to_csv(f'{path}dflq_formatted_report.tsv', sep='\t')
             dlfq_output_file = f'{path}dlfq_protein_intensities.tsv'
             
@@ -124,8 +125,8 @@ class DynamicSilac:
         return df
     
     def merge_data(self, protein_group_ratios, protein_intensites_unnormalized, protein_intensities_dlfq):
-        protein_groups = pd.merge(protein_group_ratios, protein_intensites_unnormalized,on=['protein_group','Run'], how='left')
-        protein_groups = pd.merge(protein_groups, protein_intensities_dlfq,on=['protein_group','Run'], how='left')
+        # protein_groups = pd.merge(protein_group_ratios, protein_intensites_unnormalized,on=['protein_group','Run'], how='left')
+        protein_groups = pd.merge(protein_group_ratios, protein_intensities_dlfq,on=['protein_group','Run'], how='left')
 
         return protein_groups
     
@@ -134,19 +135,14 @@ class DynamicSilac:
         def calculate_M_and_L(row):
            ratio = row['pulse/L']
            normalized_intensity = row['normalized_intensity']
-           intensity = row['Precursor.Quantity']
         
            L_norm = normalized_intensity / (ratio + 1)
            pulse_norm = normalized_intensity - L_norm
-           
-           L = intensity / (ratio + 1)
-           pulse = intensity - L
             
-            
-           return pd.Series([pulse_norm, L_norm, pulse, L], index=['pulse_norm', 'L_norm', 'pulse', 'L'])
+           return pd.Series([pulse_norm, L_norm], index=['pulse_norm', 'L_norm'])
         
          
-        df[['pulse_norm', 'L_norm', 'pulse', 'L']] = df.apply(calculate_M_and_L, axis=1)
+        df[['pulse_norm', 'L_norm']] = df.apply(calculate_M_and_L, axis=1)
         return df
     
 

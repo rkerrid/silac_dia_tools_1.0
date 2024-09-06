@@ -7,12 +7,9 @@ Created on Sun Jan 14 17:53:34 2024
 
 import os
 import pandas as pd
-import tkinter as tk
-from tkinter import messagebox, filedialog
-from pandastable import Table
 import json
-import dask.dataframe as dd
 from icecream import ic
+import tkinter as tk
 
 from .utils import manage_directories
 from .report import filtering_report, protein_overview_report
@@ -21,7 +18,7 @@ from silac_dia_tools.workflow.preprocessor import Preprocessor
 from silac_dia_tools.workflow.dynamic_dia_sis import DynamicDiaSis
 from silac_dia_tools.workflow.dia_sis import DiaSis  
 from silac_dia_tools.workflow.dynamic_silac_dia import DynamicSilac
-
+from silac_dia_tools.workflow.meta_data_entry import MetaDataEntry
 
 
 class Pipeline:
@@ -42,7 +39,7 @@ class Pipeline:
         # Placeholder variables 
         self.filtered_report = None
         self.contaminants = None
-        
+        self.protein_groups = None
         
     def _load_params(self):
         json_path = os.path.join(os.path.dirname(__file__), '..', 'configs', self.parameter_file)
@@ -72,11 +69,20 @@ class Pipeline:
     
     def _save_preprocessing(self):
         manage_directories.create_directory(self.path, 'preprocessing')
-        self.contaminants.to_csv(os.path.join(self.path, 'preprocessing', 'contaminants.tsv'), sep='\t')
-        self.filtered_out_df.to_csv(os.path.join(self.path, 'preprocessing', 'filtered_out.tsv'), sep='\t')
-        self.filtered_report.to_csv(os.path.join(self.path, 'preprocessing', 'filtered_report.tsv'), sep='\t')
-   
+        self.contaminants.to_csv(os.path.join(self.path, 'preprocessing', 'contaminants.csv'), sep=',')
+        self.filtered_report.to_csv(os.path.join(self.path, 'preprocessing', 'precursors.csv'), sep=',')
+        manage_directories.create_directory(self.path, 'protein_groups')
+        self.format_protein_groups(self.protein_groups)     
+        self.protein_groups.to_csv(os.path.join(self.path, 'protein_groups', 'protein_groups.csv'), sep=',')
+        
+    def format_protein_groups(self, protein_groups):
+        ''' this function should format protein groups into csv files for light, pulse, heavy?, norm, unnorm, and ratios and save them '''
+        return protein_groups
+        
     def _generate_reports(self):
+        '''this function should call functions from the report module to plot data ralated to IDs, ratios, correlation etc. as well as log data about the run and version etc.'''        
+        
+        
         # Generate reports for filtering, precursors, and protein groups
         manage_directories.create_directory(self.path, 'reports')
         
@@ -87,10 +93,6 @@ class Pipeline:
     def execute_pipeline(self, generate_report=True):
         self.preprocessor = Preprocessor(self.path, self.pulse_channel, self.method, self.meta_data)
         self.filtered_report, self.contaminants = self.preprocessor.import_report()
-        
-        self.filtered_report.to_csv(f'{self.path}filtered_report.csv', sep=',')
-        self.contaminants.to_csv(f'{self.path}contams.csv', sep=',')
-
 
         if self.method == 'dia_sis':
             self.precursor_rollup = DiaSis(self.path, self.filtered_report)
@@ -98,94 +100,21 @@ class Pipeline:
             self.precursor_rollup = DynamicDiaSis(self.path, self.filtered_report)
         elif self.method == 'dynamic_silac_dia':
             self.precursor_rollup = DynamicSilac(self.path, self.filtered_report)
+              
+        self.protein_groups = self.precursor_rollup.generate_protein_groups()
+     
+        self._save_preprocessing()
         
-            
-        # else:
-        #     print('incorrect method')            
-        result = self.precursor_rollup.generate_protein_groups()
-        return result
-        # self._save_preprocessing()
-        
+        return self.protein_groups
         # if generate_report:
         #     self._generate_reports() 
 
     def make_metadata(self):
         print("Searching report.tsv for unique runs for metadata, use pop up to enter metadata or copy and past selected runs to a spreadsheet and save as .csv file")
-        dtype = {
-            'Channel.Evidence.Ms1': 'float64', 'Channel.Evidence.Ms2': 'float64',
-            'Channel.L': 'float64', 'Channel.M': 'float64',
-            'Channel.Q.Value': 'float64', 'Mass.Evidence': 'float64',
-            'Ms1.Area': 'float64', 'Ms1.Profile.Corr': 'float64',
-            'Ms1.Translated': 'float64', 'Precursor.Normalised': 'float64',
-            'Precursor.Quantity': 'float64', 'Precursor.Translated': 'float64',
-            'Quantity.Quality': 'float64'
-        }
-        df = dd.read_csv(os.path.join(self.path, 'report.tsv'), sep='\t', dtype=dtype)
-        unique_runs = df['Run'].drop_duplicates().compute()
-        print(unique_runs)
         root = tk.Tk()
-        app = TestApp(self.path, root)
+        app = MetaDataEntry(self.path, root)
         root.protocol("WM_DELETE_WINDOW", app.on_closing)
         app.pack(fill="both", expand=True)  # Ensure the app fills the root window
         root.mainloop()
-            
-        
-class TestApp(tk.Frame):
-    def __init__(self, path, parent=None):
-        super().__init__(parent)
-        self.path = path
-        self.initialize_ui()
-        
-    def initialize_ui(self):
-        self.main = self.master
-        self.main.geometry('600x400+200+100')
-        self.main.title('Data Entry Table')
-        self.df = self.create_table_data()
-        self.table = self.create_table()
-        self.add_save_button()
-    
-    def create_table_data(self):
-        dtype = {
-            'Channel.Evidence.Ms1': 'float64', 'Channel.Evidence.Ms2': 'float64',
-            'Channel.L': 'float64', 'Channel.M': 'float64',
-            'Channel.Q.Value': 'float64', 'Mass.Evidence': 'float64',
-            'Ms1.Area': 'float64', 'Ms1.Profile.Corr': 'float64',
-            'Ms1.Translated': 'float64', 'Precursor.Normalised': 'float64',
-            'Precursor.Quantity': 'float64', 'Precursor.Translated': 'float64',
-            'Quantity.Quality': 'float64'
-        }
-        df = dd.read_csv(os.path.join(self.path, 'report.tsv'), sep='\t', dtype=dtype)
-        unique_runs = df['Run'].drop_duplicates().compute()
-        return pd.DataFrame({'Run': unique_runs, 'Sample': ['' for _ in unique_runs], 'Treatment': ['' for _ in unique_runs]})
-    
-    def create_table(self):
-        pt = Table(self, dataframe=self.df, showtoolbar=True, showstatusbar=True)
-        pt.show()
-        return pt
-    
-    def add_save_button(self):
-        save_button = tk.Button(self.main, text='Save', command=self.save_data)
-        save_button.pack()
-    
-    def save_data(self):
-        df_to_save = self.table.model.df
-        file_path = filedialog.asksaveasfilename(defaultextension='.csv', 
-                                                 filetypes=[("CSV files", "*.csv"), ("All files", "*.*")])
-        if file_path:
-            df_to_save.to_csv(file_path, index=False)
-            print(f'Data saved to {file_path}')
-    
-    def on_closing(self):
-        self.main.destroy()
 
-def run_test_app():
-    # Example usage
-    root = tk.Tk()
-    app = TestApp(path='your_path_here', parent=root)
-    root.protocol("WM_DELETE_WINDOW", app.on_closing)
-    app.pack(fill="both", expand=True)
-    root.mainloop()
-
-# if name == "main":
-#     run_pipeline() # or run_test_app()
 
