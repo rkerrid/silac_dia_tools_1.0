@@ -91,8 +91,8 @@ class Pipeline:
         
         
     def execute_pipeline(self, generate_report=True):
-        self.preprocessor = Preprocessor(self.path, self.pulse_channel, self.method, self.meta_data)
-        self.filtered_report, self.contaminants = self.preprocessor.import_report()
+        self.preprocessor = Preprocessor(self.path,  self.method, self.pulse_channel, self.meta_data)
+        self.filtered_report, self.contaminants = self.preprocessor.preprocess()
 
         if self.method == 'dia_sis':
             self.precursor_rollup = DiaSis(self.path, self.filtered_report)

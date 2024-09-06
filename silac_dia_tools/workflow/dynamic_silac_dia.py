@@ -14,6 +14,7 @@ from .utils import manage_directories
 
 from silac_dia_tools.workflow.utils import dlfq_functions as dlfq
 
+
 class DynamicSilac:    
     def __init__(self, path, filtered_report):
         self.path = path
