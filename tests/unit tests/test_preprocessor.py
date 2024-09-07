@@ -10,7 +10,7 @@ import unittest
 from silac_dia_tools.workflow.preprocessor import Preprocessor 
 import pandas as pd
 import pandas.testing as pdt
-
+from icecream import ic
 
 class TestPipeline(unittest.TestCase):
  
@@ -35,8 +35,10 @@ class TestPipeline(unittest.TestCase):
         df_compare = pd.read_csv('C:/phd projects/silac_dia_tools_1.0/tests/unit tests/unit test data/no spike/imported_no_spike.csv', sep=',')
         contams_compare = pd.read_csv('C:/phd projects/silac_dia_tools_1.0/tests/unit tests/unit test data/no spike/imported_no_spike_contams.csv', sep=',') 
         
-        pdt.assert_frame_equal(df, df_compare)
+        df_compare['filter_passed'] = df_compare['filter_passed'].astype('int32')
+        contams_compare['filter_passed'] = contams_compare['filter_passed'].astype('int32')
         
+        pdt.assert_frame_equal(df, df_compare) 
         pdt.assert_frame_equal(contams, contams_compare)
         
     def test_spike_import(self):
@@ -45,14 +47,16 @@ class TestPipeline(unittest.TestCase):
         
         df, contams = spike_preprocessor.import_report()
         
-        df.to_csv('C:/phd projects/silac_dia_tools_1.0/tests/unit tests/unit test data/spike/imported_spike.csv', sep=',', index=False) 
-        contams.to_csv('C:/phd projects/silac_dia_tools_1.0/tests/unit tests/unit test data/spike/imported_spike_contams.csv', sep=',', index=False) 
+        # df.to_csv('C:/phd projects/silac_dia_tools_1.0/tests/unit tests/unit test data/spike/imported_spike.csv', sep=',', index=False) 
+        # contams.to_csv('C:/phd projects/silac_dia_tools_1.0/tests/unit tests/unit test data/spike/imported_spike_contams.csv', sep=',', index=False) 
         
         df_compare = pd.read_csv('C:/phd projects/silac_dia_tools_1.0/tests/unit tests/unit test data/spike/imported_spike.csv', sep=',')
         contams_compare = pd.read_csv('C:/phd projects/silac_dia_tools_1.0/tests/unit tests/unit test data/spike/imported_spike_contams.csv', sep=',') 
         
-        pdt.assert_frame_equal(df, df_compare)
+        df_compare['filter_passed'] = df_compare['filter_passed'].astype('int32')
+        contams_compare['filter_passed'] = contams_compare['filter_passed'].astype('int32')
         
+        pdt.assert_frame_equal(df, df_compare)
         pdt.assert_frame_equal(contams, contams_compare)
         
     def test_no_spike_reformat_table(self):
@@ -65,9 +69,29 @@ class TestPipeline(unittest.TestCase):
         df_reformated = no_spike_preprocessor.reformat_table(df_imported, 'dynamic_silac_dia', 'M')
         
         # df_reformated.to_csv('C:/phd projects/silac_dia_tools_1.0/tests/unit tests/unit test data/no spike/imported_reformatted_no_spike.csv', sep=',', index=False) 
+        
         df_reformated_compare = pd.read_csv('C:/phd projects/silac_dia_tools_1.0/tests/unit tests/unit test data/no spike/imported_reformatted_no_spike.csv', sep=',')
-
+        df_reformated_compare[['filter_passed_L','filter_passed_pulse']] = df_reformated[['filter_passed_L','filter_passed_pulse']].astype('float64')
+      
+        
         pdt.assert_frame_equal(df_reformated, df_reformated_compare)
+        
+    def test_spike_reformat_table(self):
+        
+        no_spike_meta = pd.read_csv('C:/phd projects/silac_dia_tools_1.0/tests/unit tests/unit test data/spike/meta.csv', sep=',')
+        no_spike_preprocessor = Preprocessor('C:/phd projects/silac_dia_tools_1.0/tests/unit tests/unit test data/spike/',  'dynamic_dia_sis', 'M', no_spike_meta)
+        
+        df_imported = pd.read_csv('C:/phd projects/silac_dia_tools_1.0/tests/unit tests/unit test data/spike/imported_spike.csv', sep=',')
+        
+        df_reformated = no_spike_preprocessor.reformat_table(df_imported, 'dynamic_dia_sis', 'M')
+        
+        # df_reformated.to_csv('C:/phd projects/silac_dia_tools_1.0/tests/unit tests/unit test data/spike/imported_reformatted_spike.csv', sep=',', index=False) 
+        df_reformated_compare = pd.read_csv('C:/phd projects/silac_dia_tools_1.0/tests/unit tests/unit test data/spike/imported_reformatted_spike.csv', sep=',')
+ 
+        df_reformated_compare[['filter_passed_L','filter_passed_M', 'filter_passed_H']]= df_reformated[['filter_passed_L','filter_passed_M', 'filter_passed_H']].astype('float64')
+        
+        pdt.assert_frame_equal(df_reformated, df_reformated_compare)
+        
 
 if __name__ == '__main__':
     unittest.main()

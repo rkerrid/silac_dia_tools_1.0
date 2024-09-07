@@ -31,9 +31,7 @@ class Preprocessor:
         start_time = time.time()
         
         filtered_report = self.reformat_table(filtered_report, self.method, self.pulse_channel)
-        ic(filtered_report)
-        # filtered_report = self.pivot_data(filtered_report)
-        # filtered_report = self.rename_cols(filtered_report, self.method, self.pulse_channel)
+        
         print('Finished reformating')
         end_time = time.time()
         print(f"Time taken for reformating: {end_time - start_time} seconds")
@@ -97,7 +95,10 @@ class Preprocessor:
             df_pulse = df_pulse.rename(columns={'Precursor.Quantity':'precursor_quantity_pulse','Precursor.Translated':'precursor_translated_pulse','Ms1.Translated':'ms1_translated_pulse','filter_passed':'filter_passed_pulse'})
            
             df = pd.merge(df_light, df_pulse,on=index_cols, how='outer')
-           
+            
+            df['filter_passed_pulse'] = df['filter_passed_pulse'].fillna(0)
+            df['filter_passed_L'] = df['filter_passed_L'].fillna(0)
+            
             return df
         
         elif method == 'dynamic_dia_sis':
@@ -114,7 +115,10 @@ class Preprocessor:
             df_H = df_H.rename(columns={'Precursor.Quantity':'precursor_quantity_H','Precursor.Translated':'precursor_translated_H','Ms1.Translated':'ms1_translated_H','filter_passed':'filter_passed_H'})
             
             df = df_L.merge(df_M, on=index_cols, how='outer').merge(df_H, on=index_cols, how='outer')
-            df['filter_passed_H'] = df['filter_passed_H'].fillna(False)
+            
+            df['filter_passed_H'] = df['filter_passed_H'].fillna(0)
+            df['filter_passed_M'] = df['filter_passed_M'].fillna(0)
+            df['filter_passed_L'] = df['filter_passed_L'].fillna(0)
       
             return df
     
@@ -145,7 +149,7 @@ class Preprocessor:
         
         # if data does not pass the following filters set to False
         df['filter_passed'] = (df["Global.PG.Q.Value"] < 0.01) & (df["Precursor.Charge"] > 1) & (df["Channel.Q.Value"] < 0.03)
-    
+        df['filter_passed'] = df['filter_passed'].astype(int)
         return df
     
     def drop_cols(self, df):

@@ -30,9 +30,9 @@ class DynamicSilac:
         protein_group_ratios = self.compute_protein_level_ratios(precursor_ratios)
         
         protein_intensities_dlfq = self.perform_lfq(precursor_ratios)
-        protein_intensites_unnormalized = self.get_unnormalized_intensities(precursor_ratios)
+        # protein_intensites_unnormalized = self.get_unnormalized_intensities(precursor_ratios)
         
-        self.protein_groups = self.merge_data(protein_group_ratios, protein_intensites_unnormalized, protein_intensities_dlfq)
+        self.protein_groups = self.merge_data(protein_group_ratios, protein_intensities_dlfq)
         
         self.protein_groups = self.extract_M_and_L(self.protein_groups)
         
@@ -41,20 +41,27 @@ class DynamicSilac:
         return self.protein_groups
     
     def filter_data(self, df):
+        df['filter_passed_L'] = df['filter_passed_L'].astype(bool)
+        df['filter_passed_pulse'] = df['filter_passed_pulse'].astype(bool)
         return  df[(df['filter_passed_L']) | (df['filter_passed_pulse'])]
     
     def calculate_precursor_ratios(self, df):
         print('Calculating SILAC ratios based on Ms1.Translated and Precursor.Translated')
         df = df.copy()
+        # cols = ['precursor_quantity_L', 'precursor_translated_L', 'ms1_translated_L', 'precursor_translated_pulse', 'ms1_translated_pulse', 'precursor_quantity_L', 'precursor_quantity_pulse']
+        
         df.loc[:, 'Precursor.Quantity'] = df['precursor_quantity_L'].fillna(0) + df['precursor_quantity_pulse'].fillna(0)
         
-        df.loc[:, 'precursor_translated_pulse/L'] = df['precursor_translated_pulse'] / df['precursor_translated_L'] 
-        df.loc[:, 'ms1_translated_pulse/L'] = df['ms1_translated_pulse'] / df['ms1_translated_L']
+        df.loc[:, 'precursor_quantity_pulse_L_ratio'] = df['precursor_quantity_pulse'] / df['precursor_quantity_L'] 
+        df.loc[:, 'precursor_translated_pulse_L_ratio'] = df['precursor_translated_pulse'] / df['precursor_translated_L'] 
+        df.loc[:, 'ms1_translated_pulse_L_ratio'] = df['ms1_translated_pulse'] / df['ms1_translated_L']
         
-        df.loc[:, 'precursor_translated_pulse/L'] = df['precursor_translated_pulse/L'].replace([np.inf, -np.inf], np.nan)
-        df.loc[:, 'ms1_translated_pulse/L'] = df['ms1_translated_pulse/L'].replace([np.inf, -np.inf], np.nan)
+        df.loc[:, 'precursor_quantity_pulse_L_ratio'] = df['precursor_quantity_pulse_L_ratio'].replace([np.inf, 0], np.nan)
+        df.loc[:, 'precursor_translated_pulse_L_ratio'] = df['precursor_translated_pulse_L_ratio'].replace([np.inf, 0], np.nan)
+        df.loc[:, 'ms1_translated_pulse_L_ratio'] = df['ms1_translated_pulse_L_ratio'].replace([np.inf, 0], np.nan)
         
         df.loc[:, 'Lib.PG.Q.Value'] = 0
+        
         return df
     
     def compute_protein_level_ratios(self, df):
@@ -62,23 +69,20 @@ class DynamicSilac:
         runs = df['Run'].unique()
         runs_list = []
     
-        df = df.dropna(subset=['precursor_translated_pulse/L','ms1_translated_pulse/L'])
+        df = df.dropna(subset=['precursor_translated_pulse_L_ratio','precursor_quantity_pulse_L_ratio'])
     
         for run in tqdm(runs, desc='Computing protein level ratios for each run'):
             run_df = df[df['Run'] == run]
             
-            def combined_median(ms1_series, precursor_series):
+            def combined_median(pre_translated, pre_quantity, ms1_translated):
                 # Combine the series
-                combined_series = np.concatenate([ms1_series, precursor_series])
-                
-                # Check if the combined series contains only zeros
-                if np.all(combined_series == 0):
+                combined_series = np.concatenate([pre_translated, pre_quantity, ms1_translated])
+                if np.all(combined_series == np.nan):
                     return 0
-                    
-                quantifiable_ratios = combined_series[combined_series != 0] # at this point could select amount of ratios required for a valid ratio
+                combined_series = combined_series[~np.isnan(combined_series)]
                 
                 # Log-transform the modified series
-                logged_ratios = np.log2(quantifiable_ratios)
+                logged_ratios = np.log2(combined_series)
                 
                 # Calculate the median in log space
                 median_log = np.median(logged_ratios)
@@ -90,7 +94,7 @@ class DynamicSilac:
     
             # Group by protein group and apply the custom aggregation
             grouped_run = run_df.groupby(['protein_group', 'genes','protein_names', 'protein_ids']).apply(lambda x: pd.Series({
-                'pulse/L': combined_median(x['ms1_translated_pulse/L'], x['precursor_translated_pulse/L'])
+                'pulse_L_ratio': combined_median(x['precursor_translated_pulse_L_ratio'], x['precursor_quantity_pulse_L_ratio'], x['ms1_translated_pulse_L_ratio'])
             })).reset_index()
     
             grouped_run['Run'] = run
@@ -116,6 +120,7 @@ class DynamicSilac:
             # Melt the DataFrame
             result = pd.melt(dlfq_df, id_vars=['Protein.Group'], var_name='Run', value_name='Intensity')
             result = result.rename(columns={'Protein.Group':'protein_group','Intensity':'normalized_intensity'})
+            result = result[result['normalized_intensity'] != 0]
             return result
     
     def get_unnormalized_intensities(self, df):
@@ -125,16 +130,16 @@ class DynamicSilac:
         
         return df
     
-    def merge_data(self, protein_group_ratios, protein_intensites_unnormalized, protein_intensities_dlfq):
+    def merge_data(self, protein_group_ratios, protein_intensities_dlfq):
         # protein_groups = pd.merge(protein_group_ratios, protein_intensites_unnormalized,on=['protein_group','Run'], how='left')
         protein_groups = pd.merge(protein_group_ratios, protein_intensities_dlfq,on=['protein_group','Run'], how='left')
-
+        protein_groups = protein_groups.dropna(subset=['normalized_intensity'])
         return protein_groups
     
     def extract_M_and_L(self, df):
         
         def calculate_M_and_L(row):
-           ratio = row['pulse/L']
+           ratio = row['pulse_L_ratio']
            normalized_intensity = row['normalized_intensity']
         
            L_norm = normalized_intensity / (ratio + 1)

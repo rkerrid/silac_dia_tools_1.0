@@ -1,0 +1,59 @@
+	value
+input_file	C:/phd projects/silac_dia_tools_1.0/tests/unit tests/unit test data/no spike/directLFQ_output/dflq_formatted_report.tsv
+file	C:/phd projects/silac_dia_tools_1.0/tests/unit tests/unit test data/no spike/directLFQ_output/dlfq_protein_intensities.tsv
+columns_to_add	[]
+selected_proteins_file	
+mq_protein_groups_txt	
+min_nonan	1
+input_type_to_use	
+maximum_number_of_quadratic_ions_to_use_per_protein	10
+number_of_quadratic_samples	50
+num_cores	1
+filename_suffix	
+deactivate_normalization	False
+input_df	"                                                                                       1_1  ...        3_3
+protein                                            ion                                      ...           
+A0A024R4E5;C9J5E5;C9JBS3;C9JEJ8;C9JES8;C9JHN6;C... AAC(UniMod:4)LESAQEPAGAWGNK2  18.375361  ...  18.295000
+                                                   AAC(UniMod:4)LESAQEPAGAWGNK3  17.596085  ...  18.638578
+A0A087X1X7;E9PRY8;HUMAN_A0A087X1X7;HUMAN_E9PRY8    ADGEAPSALPYC(UniMod:4)YFLQK2        NaN  ...        NaN
+A0A0C4DGB5;A0A6Q8PH20;D6RBR1;D6RGF7;E7EN75;E9PS... AASLGSSQSSR2                  19.081334  ...  18.874644
+A0A0C4DGP1;HUMAN_A0A0C4DGP1                        AAALSGLAVR2                   15.244288  ...  15.173669
+...                                                                                    ...  ...        ...
+HUMAN_Q9Y6Y8;Q9Y6Y8                                AAYWEEEPAEVR3                       NaN  ...  19.855093
+                                                   AAYWEEEPAEVRR2                20.282717  ...  19.837686
+                                                   AAYWEEEPAEVRR3                20.206312  ...  20.190190
+HUMAN_R4GN18;R4GN18                                ADGGAEYATYQTK2                19.228481  ...  19.356214
+                                                   ADGGAEYATYQTK3                      NaN  ...        NaN
+
+[2968 rows x 8 columns]"
+protein_df	"                                                protein  ...                                      Protein.Group
+0     A0A024R4E5;C9J5E5;C9JBS3;C9JEJ8;C9JES8;C9JHN6;...  ...  A0A024R4E5;C9J5E5;C9JBS3;C9JEJ8;C9JES8;C9JHN6;...
+1     A0A0C4DGB5;A0A6Q8PH20;D6RBR1;D6RGF7;E7EN75;E9P...  ...  A0A0C4DGB5;A0A6Q8PH20;D6RBR1;D6RGF7;E7EN75;E9P...
+2                           A0A0C4DGP1;HUMAN_A0A0C4DGP1  ...                        A0A0C4DGP1;HUMAN_A0A0C4DGP1
+3       A0A0G2JH50;HUMAN_A0A0G2JH50;HUMAN_Q5RIP0;Q5RIP0  ...    A0A0G2JH50;HUMAN_A0A0G2JH50;HUMAN_Q5RIP0;Q5RIP0
+4                           A0A1B0GTL5;HUMAN_A0A1B0GTL5  ...                        A0A1B0GTL5;HUMAN_A0A1B0GTL5
+...                                                 ...  ...                                                ...
+1605                                HUMAN_Q9Y6K5;Q9Y6K5  ...                                HUMAN_Q9Y6K5;Q9Y6K5
+1606                                HUMAN_Q9Y6K9;Q9Y6K9  ...                                HUMAN_Q9Y6K9;Q9Y6K9
+1607                                HUMAN_Q9Y6X3;Q9Y6X3  ...                                HUMAN_Q9Y6X3;Q9Y6X3
+1608                                HUMAN_Q9Y6Y8;Q9Y6Y8  ...                                HUMAN_Q9Y6Y8;Q9Y6Y8
+1609                                HUMAN_R4GN18;R4GN18  ...                                HUMAN_R4GN18;R4GN18
+
+[1610 rows x 10 columns]"
+ion_df	"                                                                                          1_1  ...           3_3
+protein                                            ion                                         ...              
+A0A024R4E5;C9J5E5;C9JBS3;C9JEJ8;C9JES8;C9JHN6;C... AAC(UniMod:4)LESAQEPAGAWGNK2  3.400437e+05  ...  3.216205e+05
+                                                   AAC(UniMod:4)LESAQEPAGAWGNK3  1.981296e+05  ...  4.081043e+05
+A0A087X1X7;E9PRY8;HUMAN_A0A087X1X7;HUMAN_E9PRY8    ADGEAPSALPYC(UniMod:4)YFLQK2  0.000000e+00  ...  0.000000e+00
+A0A0C4DGB5;A0A6Q8PH20;D6RBR1;D6RGF7;E7EN75;E9PS... AASLGSSQSSR2                  5.546946e+05  ...  4.806557e+05
+A0A0C4DGP1;HUMAN_A0A0C4DGP1                        AAALSGLAVR2                   3.881395e+04  ...  3.695978e+04
+...                                                                                       ...  ...           ...
+HUMAN_Q9Y6Y8;Q9Y6Y8                                AAYWEEEPAEVR3                 0.000000e+00  ...  9.483717e+05
+                                                   AAYWEEEPAEVRR2                1.275575e+06  ...  9.369977e+05
+                                                   AAYWEEEPAEVRR3                1.209779e+06  ...  1.196335e+06
+HUMAN_R4GN18;R4GN18                                ADGGAEYATYQTK2                6.142561e+05  ...  6.711215e+05
+                                                   ADGGAEYATYQTK3                0.000000e+00  ...  0.000000e+00
+
+[2968 rows x 8 columns]"
+outfile_basename	C:/phd projects/silac_dia_tools_1.0/tests/unit tests/unit test data/no spike/directLFQ_output/dflq_formatted_report.tsv
+directlfq_version	0.2.19
