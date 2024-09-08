@@ -26,7 +26,6 @@ class Preprocessor:
     
     def preprocess(self):
         filtered_report, contaminants_df = self.import_report()
-        filtered_report.to_csv(f'{self.path}to_format.csv', sep=',')
         print('Reformating')
         start_time = time.time()
         

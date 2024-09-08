@@ -12,7 +12,7 @@ from icecream import ic
 import tkinter as tk
 
 from .utils import manage_directories
-from .report import filtering_report, protein_overview_report
+from .report import precursor_report
 
 from silac_dia_tools.workflow.preprocessor import Preprocessor 
 from silac_dia_tools.workflow.dynamic_dia_sis import DynamicDiaSis
@@ -81,14 +81,8 @@ class Pipeline:
         
     def _generate_reports(self):
         '''this function should call functions from the report module to plot data ralated to IDs, ratios, correlation etc. as well as log data about the run and version etc.'''        
-        
-        
-        # Generate reports for filtering, precursors, and protein groups
         manage_directories.create_directory(self.path, 'reports')
-        
-        filtering_report.create_report(self.filtered_report, self.contaminants, self.filtered_out_df, self.path, self.params)
-        protein_overview_report.create_report(self.path)
-        
+        precursor_report.create_precursor_report(self.path)
         
     def execute_pipeline(self, generate_report=True):
         self.preprocessor = Preprocessor(self.path,  self.method, self.pulse_channel, self.meta_data)
@@ -104,7 +98,7 @@ class Pipeline:
         self.protein_groups = self.precursor_rollup.generate_protein_groups()
      
         self._save_preprocessing()
-        
+        self._generate_reports()
         return self.protein_groups
      
 
