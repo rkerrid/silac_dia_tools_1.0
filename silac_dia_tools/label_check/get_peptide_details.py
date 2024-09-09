@@ -64,7 +64,7 @@ def get_most_abundant_heavy(msms, evidence, channel):
     return peptide
     
 
-def get_protein_precursors(poi, protein_groups, msms, evidence):
+def get_protein_precursors(poi, protein_groups, msms, evidence, channel):
     #check that protein is in df and filter pg groups for peptide ids 
     contains_gene = protein_groups['Protein IDs'].str.contains(poi)
     filtered_proteins = protein_groups[contains_gene]
@@ -86,7 +86,7 @@ def get_protein_precursors(poi, protein_groups, msms, evidence):
     peptide_details = []
     # loop through peptides and get peptide details for each one
     for peptide in peptides:
-        peptide_details.append(get_peptide_details(peptide, evidence))
+        peptide_details.append(get_peptide_details(peptide, evidence, channel))
     return peptide_details
 
 

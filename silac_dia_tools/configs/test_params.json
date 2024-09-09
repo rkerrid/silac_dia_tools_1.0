@@ -1,6 +1,5 @@
 {
-    "apply_strict_filters": {
-        "Precursor.Charge": {"op": ">", "value": 1},
+    "optimize": {
         "Mass.Evidence": {"op": ">", "value": 0.5},
         "Global.PG.Q.Value": {"op": "<", "value": 0.01},
         "Channel.Q.Value": {"op": "<", "value": 0.03},
@@ -8,9 +7,26 @@
         "Translated.Quality": {"op": ">=", "value": 0.05}
     },
     "apply_loose_filters": {
-        "Global.PG.Q.Value": {"op": "<", "value": 0.01},
+        "Global.PG.Q.Value": {
+            "op": "<",
+            "value": 0.01
+        },
+        "Precursor.Charge": {
+            "op": ">",
+            "value": 1
+        },
+        "Channel.Q.Value": {
+            "op": "<",
+            "value": 0.03
+        }
+    },
+     "apply_strict_filters": {
         "Precursor.Charge": {"op": ">", "value": 1},
-        "Channel.Q.Value": {"op": "<", "value": 0.03}
+        "Mass.Evidence": {"op": ">", "value": 0.5},
+        "Global.PG.Q.Value": {"op": "<", "value": 0.01},
+        "Channel.Q.Value": {"op": "<", "value": 0.03},
+        "Translated.Q.Value": {"op": "<", "value": 0.03},
+        "Translated.Quality": {"op": ">=", "value": 0.05}
     },
     "filter_cols": {
         "Precursor.Charge": {},

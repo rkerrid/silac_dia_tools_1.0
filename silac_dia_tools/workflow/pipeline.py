@@ -7,7 +7,6 @@ Created on Sun Jan 14 17:53:34 2024
 
 import os
 import pandas as pd
-import json
 from icecream import ic
 import tkinter as tk
 
@@ -22,10 +21,9 @@ from silac_dia_tools.workflow.meta_data_entry import MetaDataEntry
 
 
 class Pipeline:
-    def __init__(self, path, parameter_file, method='dia_sis', pulse_channel="M", metadata_file=None): # check method input is valid otherwise print method options
+    def __init__(self, path, method='dia_sis', pulse_channel="M", metadata_file=None): # check method input is valid otherwise print method options
         # Assign constructor variables
         self.path = path
-        self.parameter_file = parameter_file
         self.pulse_channel = pulse_channel
         self.metadata_file = metadata_file
         self.method = method
@@ -33,18 +31,13 @@ class Pipeline:
         # Initialize class variables
         self.relable_with_meta = self._confirm_metadata()
         self.meta_data = self._load_meta_data() if self.relable_with_meta else None
-        self.params = self._load_params()
-        self.filter_cols = list(self.params['filter_cols'].keys())
        
         # Placeholder variables 
         self.filtered_report = None
         self.contaminants = None
         self.protein_groups = None
         
-    def _load_params(self):
-        json_path = os.path.join(os.path.dirname(__file__), '..', 'configs', self.parameter_file)
-        with open(json_path, 'r') as file:
-            return json.load(file)
+    
 
     def _confirm_metadata(self):
         if self.metadata_file is None:
