@@ -75,22 +75,14 @@ class DynamicSilac:
             run_df = df[df['Run'] == run]
             
             def combined_median(pre_translated, pre_quantity, ms1_translated):
-                # Combine the series
-                combined_series = np.concatenate([pre_translated, pre_quantity, ms1_translated])
-                if np.all(combined_series == np.nan):
-                    return 0
-                combined_series = combined_series[~np.isnan(combined_series)]
                 
-                # Log-transform the modified series
-                logged_ratios = np.log2(combined_series)
-                
-                # Calculate the median in log space
-                median_log = np.median(logged_ratios)
-                
-                # Back-transform from log space
-                median_back_transformed = 2 ** median_log
-                
-                return median_back_transformed
+                if len(pre_quantity.dropna()) <= 1:  # Remove NaNs before counting
+                    return np.nan
+                else:
+                    combined_series = np.concatenate([pre_translated, pre_quantity, ms1_translated])
+                    combined_series = combined_series[~np.isnan(combined_series)]
+                    combined_series = np.log2(combined_series)  # Log-transform the combined series
+                    return 2**np.median(combined_series)  # Return the median of the log-transformed values
     
             # Group by protein group and apply the custom aggregation
             grouped_run = run_df.groupby(['protein_group', 'genes','protein_names', 'protein_ids']).apply(lambda x: pd.Series({

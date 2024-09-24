@@ -98,10 +98,13 @@ class DynamicDiaSis:
             
         
             def combined_median(ms1_series, precursor_series, quantity_series):
-                combined_series = np.concatenate([ms1_series, precursor_series])
-                combined_series = combined_series[~np.isnan(combined_series)]
-                combined_series = np.log2(combined_series)  # Log-transform the combined series
-                return 2**np.median(combined_series)  # Return the median of the log-transformed values
+                if len(quantity_series.dropna()) <= 1:  # Remove NaNs before counting
+                    return np.nan
+                else:
+                    combined_series = np.concatenate([ms1_series, precursor_series, quantity_series])
+                    combined_series = combined_series[~np.isnan(combined_series)]
+                    combined_series = np.log2(combined_series)  # Log-transform the combined series
+                    return 2**np.median(combined_series)  # Return the median of the log-transformed values
              
             # Group by protein group and apply the custom aggregation
             grouped = run_df.groupby(['protein_group']).apply(lambda x: pd.Series({
