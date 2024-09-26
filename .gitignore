@@ -1,6 +1,8 @@
 *.egg-info/
 __pycache__/
 *.pyc
-*.egg-info
+*silac_dia_tools.egg-info
 .ipynb_checkpoints/
 /in progress
+*.pytest_cache
+*.virtual_documents

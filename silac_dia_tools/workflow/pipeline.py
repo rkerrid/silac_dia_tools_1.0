@@ -68,6 +68,7 @@ class Pipeline:
         self.format_protein_groups(self.protein_groups)     
         self.protein_groups.to_csv(os.path.join(self.path, 'protein_groups', 'protein_groups.csv'), sep=',')
         
+        
     def format_protein_groups(self, protein_groups):
         ''' this function should format protein groups into csv files for light, pulse, heavy?, norm, unnorm, and ratios and save them '''
         return protein_groups

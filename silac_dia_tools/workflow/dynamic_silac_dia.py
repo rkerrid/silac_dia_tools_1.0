@@ -137,10 +137,10 @@ class DynamicSilac:
            L_norm = normalized_intensity / (ratio + 1)
            pulse_norm = normalized_intensity - L_norm
             
-           return pd.Series([pulse_norm, L_norm], index=['pulse_norm', 'L_norm'])
+           return pd.Series([pulse_norm, L_norm], index=['pulse', 'L'])
         
          
-        df[['pulse_norm', 'L_norm']] = df.apply(calculate_M_and_L, axis=1)
+        df[['pulse', 'L']] = df.apply(calculate_M_and_L, axis=1)
         return df
     
 

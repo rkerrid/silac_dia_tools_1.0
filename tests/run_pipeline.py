@@ -22,6 +22,6 @@ if __name__ == "__main__":
     # pipeline = pipeline( f'{path}',  method = 'dynamic_dia_sis', pulse_channel="M", metadata_file='meta.csv')
     # result = pipeline.execute_pipeline()
     
-    path = r'G:\My Drive\Data\data\20240904 for florian\dataset 2\\'
+    path = 'G:/My Drive/Data/data/20240905 mouse muscle precursors SILAC pilot/astral/'
     pipeline = pipeline( f'{path}',  method = 'dynamic_silac_dia', pulse_channel="H", metadata_file='meta.csv')
     result = pipeline.execute_pipeline()
