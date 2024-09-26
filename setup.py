@@ -14,6 +14,7 @@ setup(
         'icecream',
         'seaborn',
         'fpdf',
+        'pytest',
         'tqdm',
         'pandastable',       
         'alphapept @ git+https://github.com/MannLabs/alphapept.git@master#egg=alphapept[stable]',  # specify the branch, tag, or commit
