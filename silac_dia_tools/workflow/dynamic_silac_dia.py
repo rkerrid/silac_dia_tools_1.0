@@ -76,10 +76,10 @@ class DynamicSilac:
             
             def combined_median(pre_translated, pre_quantity, ms1_translated):
                 
-                if len(pre_quantity.dropna()) <= 1:  # Remove NaNs before counting
+                if len(pre_quantity.dropna()) < 1:  # Remove NaNs before counting
                     return np.nan
                 else:
-                    combined_series = np.concatenate([pre_translated, pre_quantity, ms1_translated])
+                    combined_series = np.concatenate([pre_quantity, pre_translated])
                     combined_series = combined_series[~np.isnan(combined_series)]
                     combined_series = np.log2(combined_series)  # Log-transform the combined series
                     return 2**np.median(combined_series)  # Return the median of the log-transformed values

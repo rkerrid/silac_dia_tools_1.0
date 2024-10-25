@@ -40,7 +40,7 @@ class DynamicDiaSis:
         df['filter_passed_H'] = df['filter_passed_H'].astype(bool)
         df['filter_passed_M'] = df['filter_passed_M'].astype(bool)
 
-        return  df[(df['filter_passed_H'])]
+        return  df[((df['filter_passed_H'] & df['filter_passed_L']) | (df['filter_passed_H'] & df['filter_passed_M']))]
         
     def generate_href_df(self, precursors):
         df_href_precursors = precursors[['Run', 'protein_group', 'precursor_id', 'precursor_quantity_H']]
@@ -98,10 +98,10 @@ class DynamicDiaSis:
             
         
             def combined_median(ms1_series, precursor_series, quantity_series):
-                if len(quantity_series.dropna()) <= 1:  # Remove NaNs before counting
+                if len(quantity_series.dropna()) < 1:  # Remove NaNs before counting
                     return np.nan
                 else:
-                    combined_series = np.concatenate([ms1_series, precursor_series, quantity_series])
+                    combined_series = np.concatenate([precursor_series, quantity_series])
                     combined_series = combined_series[~np.isnan(combined_series)]
                     combined_series = np.log2(combined_series)  # Log-transform the combined series
                     return 2**np.median(combined_series)  # Return the median of the log-transformed values

@@ -191,6 +191,7 @@ class Preprocessor:
         # if data does not pass the following filters set to False
         df['filter_passed'] = (df["Global.PG.Q.Value"] < 0.01) & (df["Precursor.Charge"] > 1) & (df["Channel.Q.Value"] <0.03) 
         df['filter_passed'] = df['filter_passed'].astype(int)
+        df = df[df['Channel.Q.Value']<0.01]
         return df
     
     def optimizing_filters(self, df, params):
