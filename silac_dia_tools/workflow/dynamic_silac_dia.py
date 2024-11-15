@@ -28,7 +28,7 @@ class DynamicSilac:
         
         precursor_ratios = self.calculate_precursor_ratios(self.filtered_report)
         protein_group_ratios = self.compute_protein_level_ratios(precursor_ratios)
-        
+        protein_group_ratios.to_csv(f'{self.path}/preprocessing/protein_group_ratios.csv', sep=',')
         protein_intensities_dlfq = self.perform_lfq(precursor_ratios)
         # protein_intensites_unnormalized = self.get_unnormalized_intensities(precursor_ratios)
         
@@ -85,7 +85,7 @@ class DynamicSilac:
                     return 2**np.median(combined_series)  # Return the median of the log-transformed values
     
             # Group by protein group and apply the custom aggregation
-            grouped_run = run_df.groupby(['protein_group', 'genes','protein_names', 'protein_ids']).apply(lambda x: pd.Series({
+            grouped_run = run_df.groupby(['protein_group']).apply(lambda x: pd.Series({
                 'pulse_L_ratio': combined_median(x['precursor_translated_pulse_L_ratio'], x['precursor_quantity_pulse_L_ratio'], x['ms1_translated_pulse_L_ratio'])
             })).reset_index()
     

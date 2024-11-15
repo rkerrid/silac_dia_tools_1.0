@@ -82,10 +82,10 @@ class DynamicDiaSis:
         index_cols = ['Run','protein_group','precursor_id']
         
         LH_precursors = precursors[index_cols + ['precursor_translated_LH', 'ms1_translated_LH', 'precursor_quantity_LH']]
-        LH_precursors = LH_precursors.dropna(subset=['precursor_translated_LH', 'precursor_quantity_LH'])
+        LH_precursors = LH_precursors.dropna(subset=['precursor_translated_LH', 'ms1_translated_LH'])
         
         MH_precursors = precursors[index_cols + ['precursor_translated_MH', 'ms1_translated_MH','precursor_quantity_MH']]
-        MH_precursors = MH_precursors.dropna(subset=['precursor_translated_MH', 'precursor_quantity_MH'])
+        MH_precursors = MH_precursors.dropna(subset=['precursor_translated_MH', 'ms1_translated_MH'])
         
         return LH_precursors, MH_precursors 
 
@@ -101,7 +101,7 @@ class DynamicDiaSis:
                 if len(quantity_series.dropna()) <= 1:  # Remove NaNs before counting
                     return np.nan
                 else:
-                    combined_series = np.concatenate([ms1_series, precursor_series, quantity_series])
+                    combined_series = np.concatenate([ms1_series, precursor_series])
                     combined_series = combined_series[~np.isnan(combined_series)]
                     combined_series = np.log2(combined_series)  # Log-transform the combined series
                     return 2**np.median(combined_series)  # Return the median of the log-transformed values
