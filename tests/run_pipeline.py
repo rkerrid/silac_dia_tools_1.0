@@ -18,10 +18,11 @@ if __name__ == "__main__":
     # result = pipeline.execute_pipeline()
     
     path = r'G:\My Drive\Data\main experiments\20241017 astral dilution BM\nospike\\'
-    pipeline = pipeline( f'{path}',  method = 'dynamic_silac_dia', pulse_channel="M", metadata_file='meta.csv')
+    path = r'W:\RJK\Flo_20241118\\'
+    pipeline = pipeline( f'{path}',  method = 'dynamic_silac_dia', pulse_channel="H", metadata_file='meta.csv')
     result = pipeline.execute_pipeline()
      
-     
+    path = r'W:\RJK\Flo_20241118\\'
 
     # path = r'G:\My Drive\Data\main experiments\20241012 timsTOF BM\SPD30 dil nospike\\'
     # pipeline = pipeline( f'{path}',  method = 'dynamic_silac_dia', pulse_channel="M", metadata_file='meta.csv')

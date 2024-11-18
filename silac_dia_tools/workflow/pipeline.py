@@ -17,6 +17,7 @@ from silac_dia_tools.workflow.preprocessor import Preprocessor
 from silac_dia_tools.workflow.dynamic_dia_sis import DynamicDiaSis
 from silac_dia_tools.workflow.dia_sis import DiaSis  
 from silac_dia_tools.workflow.dynamic_silac_dia import DynamicSilac
+from silac_dia_tools.workflow.stacked_lfq import StackedLFQ
 from silac_dia_tools.workflow.meta_data_entry import MetaDataEntry
 
 
@@ -87,7 +88,7 @@ class Pipeline:
         elif self.method == 'dynamic_dia_sis':
             self.precursor_rollup = DynamicDiaSis(self.path, self.filtered_report)
         elif self.method == 'dynamic_silac_dia':
-            self.precursor_rollup = DynamicSilac(self.path, self.filtered_report)
+            self.precursor_rollup = StackedLFQ(self.path, self.filtered_report)
               
         self.protein_groups = self.precursor_rollup.generate_protein_groups()
      
