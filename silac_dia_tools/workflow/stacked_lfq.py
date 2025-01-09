@@ -33,9 +33,11 @@ class StackedLFQ:
         protein_channel_mask = self.get_protein_level_channel_mask(precursor_ratios)
         
         # protein_intensites_unnormalized = self.get_unnormalized_intensities(precursor_ratios)
-        
+        ic(protein_group_ratios)
+        ic(protein_channel_mask)
+        ic(protein_intensities_dlfq)
         self.protein_groups = self.merge_data(protein_group_ratios, protein_channel_mask, protein_intensities_dlfq)
-        
+        ic(self.protein_groups)
         self.protein_groups = self.extract_M_and_L(self.protein_groups)
         
         end_time = time.time()
@@ -76,25 +78,26 @@ class StackedLFQ:
         for run in tqdm(runs, desc='Computing protein level ratios for each run'):
             run_df = df[df['Run'] == run]
             
-            def combined_median(pre_translated, pre_quantity, ms1_translated):
+            def combined_median(pre_translated, pre_quantity):
                 
                 if len(pre_quantity.dropna()) <= 1:  # Remove NaNs before counting
                     return np.nan
                 else:
-                    combined_series = np.concatenate([pre_translated, pre_quantity, ms1_translated])
+                    combined_series = np.concatenate([pre_translated, pre_quantity])
                     combined_series = combined_series[~np.isnan(combined_series)]
                     combined_series = np.log2(combined_series)  # Log-transform the combined series
                     return 2**np.median(combined_series)  # Return the median of the log-transformed values
     
             # Group by protein group and apply the custom aggregation
             grouped_run = run_df.groupby(['protein_group']).apply(lambda x: pd.Series({
-                'pulse_L_ratio': combined_median(x['precursor_translated_pulse_L_ratio'], x['precursor_quantity_pulse_L_ratio'], x['ms1_translated_pulse_L_ratio'])
+                'pulse_L_ratio': combined_median(x['precursor_translated_pulse_L_ratio'], x['precursor_quantity_pulse_L_ratio'])
             })).reset_index()
     
             grouped_run['Run'] = run
             runs_list.append(grouped_run)
     
         result = pd.concat(runs_list, ignore_index=True)
+        result['channel'] = 'ratio'
         return result
     
     def get_protein_level_channel_mask(self, df):
@@ -182,14 +185,14 @@ class StackedLFQ:
     
     def merge_data(self, protein_group_ratios, protein_channel_mask, protein_intensities_dlfq):
         # protein_groups = pd.merge(protein_group_ratios, protein_intensites_unnormalized,on=['protein_group','Run'], how='left')
-        protein_groups = pd.merge(protein_group_ratios, protein_channel_mask,on=['protein_group','Run'], how='outer')
+        protein_groups = pd.merge(protein_group_ratios, protein_channel_mask,on=['protein_group','Run', 'channel'], how='outer')
 
         protein_groups = pd.merge(protein_groups, protein_intensities_dlfq,on=['protein_group','Run'], how='left')
         protein_groups = protein_groups.dropna(subset=['normalized_intensity'])
         
         protein_groups['L'] = 0
         protein_groups['pulse'] = 0
-
+        print(protein_groups.columns.values.tolist())
         return protein_groups
     
     def extract_M_and_L(self, df):
