@@ -62,7 +62,7 @@ class Pipeline:
         return pd.read_csv(os.path.join(self.path, self.metadata_file), sep=',')       
     
     def _save_preprocessing(self):
-        manage_directories.create_directory(self.path, 'preprocessing')
+        
         self.contaminants.to_csv(os.path.join(self.path, 'preprocessing', 'contaminants.csv'), sep=',')
         self.filtered_report.to_csv(os.path.join(self.path, 'preprocessing', 'precursors.csv'), sep=',')
         manage_directories.create_directory(self.path, 'protein_groups')
@@ -80,6 +80,7 @@ class Pipeline:
         precursor_report.create_precursor_report(self.path)
         
     def execute_pipeline(self, generate_report=True):
+        manage_directories.create_directory(self.path, 'preprocessing')
         self.preprocessor = Preprocessor(self.path,  self.method, self.pulse_channel, self.meta_data)
         self.filtered_report, self.contaminants = self.preprocessor.preprocess()
 

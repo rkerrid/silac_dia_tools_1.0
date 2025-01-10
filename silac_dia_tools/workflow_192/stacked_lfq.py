@@ -50,19 +50,17 @@ class StackedLFQ:
         return  df[(df['filter_passed_L']) | (df['filter_passed_pulse'])]
     
     def calculate_precursor_ratios(self, df):
-        print('Calculating SILAC ratios based on Ms1.Translated and Precursor.Translated')
+        print('Calculating SILAC ratios based on precursor quantity')
         df = df.copy()
         # cols = ['precursor_quantity_L', 'precursor_translated_L', 'ms1_translated_L', 'precursor_translated_pulse', 'ms1_translated_pulse', 'precursor_quantity_L', 'precursor_quantity_pulse']
         
         df.loc[:, 'Precursor.Quantity'] = df['precursor_quantity_L'].fillna(0) + df['precursor_quantity_pulse'].fillna(0)
         
         df.loc[:, 'precursor_quantity_pulse_L_ratio'] = df['precursor_quantity_pulse'] / df['precursor_quantity_L'] 
-        df.loc[:, 'precursor_translated_pulse_L_ratio'] = df['precursor_translated_pulse'] / df['precursor_translated_L'] 
-        df.loc[:, 'ms1_translated_pulse_L_ratio'] = df['ms1_translated_pulse'] / df['ms1_translated_L']
+       
         
         df.loc[:, 'precursor_quantity_pulse_L_ratio'] = df['precursor_quantity_pulse_L_ratio'].replace([np.inf, 0], np.nan)
-        df.loc[:, 'precursor_translated_pulse_L_ratio'] = df['precursor_translated_pulse_L_ratio'].replace([np.inf, 0], np.nan)
-        df.loc[:, 'ms1_translated_pulse_L_ratio'] = df['ms1_translated_pulse_L_ratio'].replace([np.inf, 0], np.nan)
+        
         
         df.loc[:, 'Lib.PG.Q.Value'] = 0
         
@@ -73,24 +71,23 @@ class StackedLFQ:
         runs = df['Run'].unique()
         runs_list = []
     
-        df = df.dropna(subset=['precursor_translated_pulse_L_ratio','precursor_quantity_pulse_L_ratio'])
+        df = df.dropna(subset=['precursor_quantity_pulse_L_ratio'])
     
         for run in tqdm(runs, desc='Computing protein level ratios for each run'):
             run_df = df[df['Run'] == run]
             
-            def combined_median(pre_translated, pre_quantity):
+            def combined_median(pre_quantity):
                 
                 if len(pre_quantity.dropna()) <= 1:  # Remove NaNs before counting
                     return np.nan
                 else:
-                    combined_series = np.concatenate([pre_translated, pre_quantity])
-                    combined_series = combined_series[~np.isnan(combined_series)]
-                    combined_series = np.log2(combined_series)  # Log-transform the combined series
-                    return 2**np.median(combined_series)  # Return the median of the log-transformed values
+                    
+                    pre_quantity = np.log2(pre_quantity)  # Log-transform the combined series
+                    return 2**np.median(pre_quantity)  # Return the median of the log-transformed values
     
             # Group by protein group and apply the custom aggregation
             grouped_run = run_df.groupby(['protein_group']).apply(lambda x: pd.Series({
-                'pulse_L_ratio': combined_median(x['precursor_translated_pulse_L_ratio'], x['precursor_quantity_pulse_L_ratio'])
+                'pulse_L_ratio': combined_median(x['precursor_quantity_pulse_L_ratio'])
             })).reset_index()
     
             grouped_run['Run'] = run

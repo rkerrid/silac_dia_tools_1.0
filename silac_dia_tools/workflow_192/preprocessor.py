@@ -91,21 +91,22 @@ class Preprocessor:
     #     contams = []
     #     with tqdm(total=total_chunks, desc="Processing file in chunks") as pbar:
     #         for chunk in pd.read_table(file_path, sep="\t", chunksize=self.chunk_size):
-    #             chunk, contam_chunk = self.process_chunk(chunk)
-    #             pbar.update(1) 
-    #             chunks.append(chunk)
-    #             contams.append(contam_chunk)
+               
+        #         chunk, contam_chunk = self.process_chunk(chunk)
+        #         pbar.update(1) 
+        #         chunks.append(chunk)
+        #         contams.append(contam_chunk)
         
         
-    #     # Concatenate chunks into final DataFrame
-    #     filtered_report = pd.concat(chunks, ignore_index=True)
-    #     contaminants_df = pd.concat(contams, ignore_index=True)
+        # # Concatenate chunks into final DataFrame
+        # filtered_report = pd.concat(chunks, ignore_index=True)
+        # contaminants_df = pd.concat(contams, ignore_index=True)
     
-    #     print('Finished import')
-    #     end_time = time.time()
-    #     print(f"Time taken for import: {end_time - start_time} seconds")
+        # print('Finished import')
+        # end_time = time.time()
+        # print(f"Time taken for import: {end_time - start_time} seconds")
         
-    #     return filtered_report, contaminants_df
+        # return filtered_report, contaminants_df
     
 
     def process_chunk(self, chunk):
@@ -224,8 +225,6 @@ class Preprocessor:
                   'Genes',
                   'Precursor.Id',
                   'Precursor.Quantity',
-                  'Precursor.Translated',
-                  'Ms1.Translated',
                   'Label',
                   'filter_passed']
         
