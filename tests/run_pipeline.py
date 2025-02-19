@@ -21,13 +21,13 @@ if __name__ == "__main__":
     path = r'G:\My Drive\Data\data\Flo_20241118\\'
    
      
-    path = r'G:\My Drive\Data\data\20250701 Kraushar mouse brain samples low input\\'
-    # path = r'W:\JA\SILAC Neurons 48 hours ASTRAL NEW RUN\\'
+    path = r'W:\CGI\20250206_Popeye_DIA_T2\DIANN_1dot8dot2_output\\'
+    path = r'G:\My Drive\Data\main experiments\20250217 G2 thaps\\'
     
     pipeline = pipeline( f'{path}',  method = 'dynamic_silac_dia', pulse_channel="H", metadata_file='meta.csv')
     
-    # result = pipeline.make_metadata()    
-    result = pipeline.execute_pipeline()
+    result = pipeline.make_metadata()  
+    # result = pipeline.execute_pipeline()
 
     # path = r'G:\My Drive\Data\main experiments\20241012 timsTOF BM\SPD30 dil nospike\\'
     # pipeline = pipeline( f'{path}',  method = 'dynamic_silac_dia', pulse_channel="M", metadata_file='meta.csv')

@@ -28,6 +28,7 @@ class StackedLFQ:
         
         precursor_ratios = self.calculate_precursor_ratios(self.filtered_report)
         protein_group_ratios = self.compute_protein_level_ratios(precursor_ratios)
+        manage_directories.create_directory(self.path, 'preprocessing')
         protein_group_ratios.to_csv(f'{self.path}/preprocessing/protein_group_ratios.csv', sep=',')
         protein_intensities_dlfq = self.perform_lfq(precursor_ratios)
         protein_channel_mask = self.get_protein_level_channel_mask(precursor_ratios)
@@ -192,7 +193,6 @@ class StackedLFQ:
         
         protein_groups['L'] = 0
         protein_groups['pulse'] = 0
-        print(protein_groups.columns.values.tolist())
         return protein_groups
     
     def extract_M_and_L(self, df):

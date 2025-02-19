@@ -17,8 +17,8 @@ setup(
         'pytest',
         'tqdm',
         'pandastable',       
-        'alphapept @ git+https://github.com/MannLabs/alphapept.git@master#egg=alphapept[stable]',  # specify the branch, tag, or commit
-        "directlfq @ git+https://github.com/MannLabs/directlfq.git@development#egg=directlfq[stable,development-stable]",# specify the branch, tag, or commit
+        'alphapept @ git+https://github.com/MannLabs/alphapept.git',  # specify the branch, tag, or commit
+        "directlfq @ git+https://github.com/MannLabs/directlfq.git",# specify the branch, tag, or commit
         
     ],
 )

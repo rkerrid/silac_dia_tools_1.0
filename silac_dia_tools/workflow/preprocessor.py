@@ -113,7 +113,7 @@ class Preprocessor:
         if self.meta_data is not None:
             chunk = self.subset_based_on_metadata(chunk)
             chunk = self.relabel_run(chunk)
-        
+        print(chunk.columns.values.tolist())
         chunk = self.add_label_col(chunk)
         
         chunk = self.add_passes_filter_col(chunk)

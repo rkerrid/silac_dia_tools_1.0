@@ -6,12 +6,13 @@ import pandas as pd
 if __name__ == "__main__": 
    
      
-   path = r'G:\My Drive\Data\data\20250109 bm20 nospike dian192\\'
-   
+   path = r'G:\My Drive\Data\PhD results chapters\Three channel BM on all machines\data\20250131 BM astral 40spdwz diann 92\\'
+   path = path = r'W:\CGI\20250206_Popeye_DIA_T2\DIANN_1dot8dot2_output\\'
    # path = r'G:\My Drive\Data\data\20240909 BM pilot astral\no spike\\'
-   pipeline = pipeline( f'{path}',  method = 'dynamic_silac_dia', pulse_channel="M", metadata_file='meta.csv')
+   pipeline = pipeline( f'{path}',  method = 'dynamic_silac_dia', pulse_channel="H", metadata_file='meta.csv')
     
    pipeline.execute_pipeline()
+   # pipeline.make_metadata()
    
    
    ['File.Name', 
