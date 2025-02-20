@@ -70,6 +70,47 @@ class Pipeline:
         self.protein_groups.to_csv(os.path.join(self.path, 'protein_groups', 'protein_groups.csv'), sep=',')
         
         
+        
+        df_l = self.protein_groups.copy(deep=True)
+        
+        df_l = df_l[['Run','protein_group','L']]
+        df_l = df_l.dropna()
+
+        df_l = df_l.pivot_table(
+        index=['protein_group'], 
+        columns='Run',                                
+        values='L'                          
+                                 
+        ).reset_index()
+        df_l.to_csv(os.path.join(self.path, 'protein_groups', 'light.csv'), sep=',')
+        
+        df_p = self.protein_groups.copy(deep=True)
+        
+        df_p = df_p[['Run','protein_group','pulse']]
+        df_p = df_p.dropna()
+        
+        df_p = df_p.pivot_table(
+        index=['protein_group'], 
+        columns='Run',                                
+        values='pulse'                          
+                                 
+        ).reset_index()
+        df_p.to_csv(os.path.join(self.path, 'protein_groups', 'pulse.csv'), sep=',')
+        
+        df_r = self.protein_groups.copy(deep=True)
+        
+        df_r = df_r[['Run','protein_group','pulse_L_ratio']]
+        df_r = df_r.dropna()
+        
+        df_r = df_r.pivot_table(
+        index=['protein_group'], 
+        columns='Run',                                
+        values='pulse_L_ratio'                          
+                                 
+        ).reset_index()
+        df_r.to_csv(os.path.join(self.path, 'protein_groups', 'ratios.csv'), sep=',')
+        
+        
     def format_protein_groups(self, protein_groups):
         ''' this function should format protein groups into csv files for light, pulse, heavy?, norm, unnorm, and ratios and save them '''
         return protein_groups
